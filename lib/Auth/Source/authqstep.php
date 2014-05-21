@@ -47,6 +47,7 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
     private $db_dsn;
     private $db_username;
     private $db_password;
+    private $site_salt;
     private $dbh;
 
 

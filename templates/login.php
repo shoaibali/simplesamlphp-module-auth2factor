@@ -5,6 +5,16 @@ $this->data['header'] = $this->t('{authqstep:login:authentication}');
 
 ?>
 
+<link rel="stylesheet" href="keyboard.css" />
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.6/jquery.min.js"></script>
+<script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8/jquery-ui.min.js"></script>
+<script type="text/javascript" src="jquery.keyboard.min.js"></script>
+<script type="text/javascript">
+	$(document).ready(function () {
+	  $("input[type='text']").keyboard();
+	});
+</script>
+
 <? if ($this->data['errorcode'] !== NULL) :?>
 	<div style="border-left: 1px solid #e8e8e8; border-bottom: 1px solid #e8e8e8; background: #f5f5f5">
 		<img src="/<?php echo $this->data['baseurlpath']; ?>resources/icons/experience/gtk-dialog-error.48x48.png" style="float: left; margin: 15px " />

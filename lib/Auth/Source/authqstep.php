@@ -13,7 +13,6 @@
  *        	'db.dsn' => 'mysql:host=db.example.com;port=3306;dbname=idpauthqstep',
  *       	'db.username' => 'simplesaml',
  *       	'db.password' => 'password',
- *          'db.site_salt' => 'secretsalt',
  *			'mainAuthSource' => 'ldap',
  *			'uidField' => 'uid'
  *        ),
@@ -76,10 +75,13 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
 		if (array_key_exists('db.password', $config)) {
 			$this->db_password = $config['db.password'];
 		}
-		if (array_key_exists('db.site_salt', $config)) {
-		        $this->site_salt = $config['db.site_salt'];
+		
+		$globalConfig = SimpleSAML_Configuration::getInstance();
+		if ($globalConfig->hasValue('secretsalt')) {
+		   	$this->site_salt = $globalConfig->getValue('secretsalt');
 		} else {
-		        die('Authqstep: Site salt not set! You should set this immediately!');
+		        /* This is probably redundant, as SimpleSAMLPHP will not let you run without a salt */
+		        die('Authqstep: secretsalt not set in config.php! You should set this immediately!');
 		}
 
         $this->tfa_authencontextclassref = self::TFAAUTHNCONTEXTCLASSREF;

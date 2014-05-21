@@ -132,7 +132,7 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
 		$q = "CREATE TABLE IF NOT EXISTS ssp_answers (
 		          answer_id INT(11) NOT NULL AUTO_INCREMENT,
 		          PRIMARY KEY(answer_id),
-		          answer_text VARCHAR(255) NOT NULL,
+		          answer_hash VARCHAR(128) NOT NULL,
 			  answer_salt VARCHAR(15) NOT NULL,
                   question_id INT(11) NOT NULL,
                   uid VARCHAR(60) NULL
@@ -213,7 +213,7 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
         // Answers will need to be normalized and then hashed to md5+salt
 	$answer_salt = $this->generateRandomString();
 	$answer_hash = $this->calculateAnswerHash($answer, $this->site_salt, $answer_salt);
-            $q = "INSERT INTO ssp_answers (answer_salt, answer_text, question_id, uid) 
+            $q = "INSERT INTO ssp_answers (answer_salt, answer_hash, question_id, uid) 
                     VALUES (\"".$answer_salt."\",
 		    	    \"".$answer_hash."\",
                             \"".$question."\",
@@ -243,7 +243,7 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
 	    if ($question_id == $a["question_id"]) {
 	       $answer_salt = $a['answer_salt'];
 	       $submitted_hash = $this->calculateAnswerHash($answer, $this->site_salt, $answer_salt);
-	       if($submitted_hash == $a["answer_text"]) {
+	       if($submitted_hash == $a["answer_hash"]) {
                   $match = TRUE;
 		  break;
 	       }

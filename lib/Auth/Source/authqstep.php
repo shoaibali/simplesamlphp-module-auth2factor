@@ -13,7 +13,7 @@
  *        	'db.dsn' => 'mysql:host=db.example.com;port=3306;dbname=idpauthqstep',
  *       	'db.username' => 'simplesaml',
  *       	'db.password' => 'password',
- *          'db.answers_salt' => 'secretsalt',
+ *          'db.site_salt' => 'secretsalt',
  *			'mainAuthSource' => 'ldap',
  *			'uidField' => 'uid'
  *        ),
@@ -76,6 +76,11 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
 		if (array_key_exists('db.password', $config)) {
 			$this->db_password = $config['db.password'];
 		}
+		if (array_key_exists('db.site_salt', $config)) {
+		        $this->site_salt = $config['db.site_salt'];
+		} else {
+		        die('Authqstep: Site salt not set! You should set this immediately!');
+		}
 
         $this->tfa_authencontextclassref = self::TFAAUTHNCONTEXTCLASSREF;
         try {
@@ -100,6 +105,16 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
 		SimpleSAML_Utilities::redirect($url, array('AuthState' => $id));
 	}
 
+	//Generate a random string of a given length. Used to produce the per-question salt
+	private function generateRandomString($length=15) {
+		$characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    		$randomString = '';
+		for ($i = 0; $i < $length; $i++) {
+        	    $randomString .= $characters[rand(0, strlen($characters) - 1)];
+    		}
+		return $randomString;
+	}
+
 	private function createTables()
 	{
         /* Create table to hold questions */
@@ -116,6 +131,7 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
 		          answer_id INT(11) NOT NULL AUTO_INCREMENT,
 		          PRIMARY KEY(answer_id),
 		          answer_text VARCHAR(255) NOT NULL,
+			  answer_salt VARCHAR(15) NOT NULL,
                   question_id INT(11) NOT NULL,
                   uid VARCHAR(60) NULL
 		         );";
@@ -168,7 +184,10 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
         // TODO this question needs to be made persistent 
         // so that user is challenged for same random question
         return array_unique($random_question);
+    }
 
+    private function calculateAnswerHash($answer, $siteSalt, $answerSalt) {
+    	return hash('sha512', $siteSalt.$answerSalt.strtolower($answer));
     }
 
     /**
@@ -190,8 +209,11 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
         // TODO base64encode or MD5+Salt answers
         // Which will also get rid of SQL injections            
         // Answers will need to be normalized and then hashed to md5+salt
-            $q = "INSERT INTO ssp_answers (answer_text, question_id, uid) 
-                    VALUES (\"".strtolower($answer)."\",
+	$answer_salt = $this->generateRandomString();
+	$answer_hash = $this->calculateAnswerHash($answer, $this->site_salt, $answer_salt);
+            $q = "INSERT INTO ssp_answers (answer_salt, answer_text, question_id, uid) 
+                    VALUES (\"".$answer_salt."\",
+		    	    \"".$answer_hash."\",
                             \"".$question."\",
                             \"".$uid."\");";
 
@@ -214,12 +236,16 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
     public function verifyAnswer($uid, $question_id, $answer){
         $answers = self::getAnswersFromUID($uid);
         $match = FALSE;
-        // cheap way to get around sql injection
-        $hashed_answer = md5($answer);
         
         foreach($answers as $a){
-            if( ($hashed_answer == md5($a["answer_text"])) && ($question_id == $a["question_id"]) )
-                $match = TRUE;
+	    if ($question_id == $a["question_id"]) {
+	       $answer_salt = $a['answer_salt'];
+	       $submitted_hash = $this->calculateAnswerHash($answer, $this->site_salt, $answer_salt);
+	       if($submitted_hash == $a["answer_text"]) {
+                  $match = TRUE;
+		  break;
+	       }
+	    }
         }
         return $match;
     }

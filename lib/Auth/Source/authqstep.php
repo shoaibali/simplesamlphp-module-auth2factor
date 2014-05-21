@@ -13,9 +13,10 @@
  *        	'db.dsn' => 'mysql:host=db.example.com;port=3306;dbname=idpauthqstep',
  *       	'db.username' => 'simplesaml',
  *       	'db.password' => 'password',
- *			'mainAuthSource' => 'ldap',
- *			'uidField' => 'uid',
- *		'post_logout_url' => 'http://google.com' //URL to redirect to on logout. Optional
+ *		'mainAuthSource' => 'ldap',
+ *		'uidField' => 'uid',
+ *		'post_logout_url' => 'http://google.com' // URL to redirect to on logout. Optional
+ *		'minAnswerLength' => 10 // Minimum answer length. Defaults to 0
  *        ),
  *
  * @package simpleSAMLphp
@@ -30,9 +31,9 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
 	const STEPID = 'authqstep.step';
 
 	/**
-	 * Minimum length of secret answer required.	 
+	 * Default minimum length of secret answer required. Can be overridden in the config
 	 */
-	const ANSWERMINCHARLENGTH = 10;
+	const ANSWERMINCHARLENGTH = 0;
 
 	/**
 	 * The key of the AuthId field in the state.
@@ -51,6 +52,7 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
     private $site_salt;
     private $logoutURL;
     private $dbh;
+    private $minAnswerLength;
 
 
     public $tfa_authencontextclassref;
@@ -82,6 +84,11 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
 		   $this->logoutURL = $config['post_logout_url'];
 		} else {
 		   $this->logoutURL = '/logout.php';
+		}
+		if (array_key_exists('minAnswerLength', $config)) {
+		   $this->minAnswerLength = $config['minAnswerLength'];
+		} else {
+		   $this->minAnserLength = self::ANSWERMINCHARLENGTH;
 		}
 
 		
@@ -236,20 +243,22 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
       $question_answers = array_combine($answers, $questions);
 
       foreach ($question_answers as $answer => $question) {
-        // TODO base64encode or MD5+Salt answers
-        // Which will also get rid of SQL injections            
-        // Answers will need to be normalized and then hashed to md5+salt
-	$answer_salt = $this->generateRandomString();
-	$answer_hash = $this->calculateAnswerHash($answer, $this->site_salt, $answer_salt);
-            $q = "INSERT INTO ssp_answers (answer_salt, answer_hash, question_id, uid) 
-                    VALUES (\"".$answer_salt."\",
-		    	    \"".$answer_hash."\",
-                            \"".$question."\",
-                            \"".$uid."\");";
+        // Check that the answer meets the length requirements
+        if (strlen($answer) > $this->minAnswerLength) {
+  	  $answer_salt = $this->generateRandomString();
+	  $answer_hash = $this->calculateAnswerHash($answer, $this->site_salt, $answer_salt);
+              $q = "INSERT INTO ssp_answers (answer_salt, answer_hash, question_id, uid) 
+                      VALUES (\"".$answer_salt."\",
+	  	    	      \"".$answer_hash."\",
+                              \"".$question."\",
+                              \"".$uid."\");";
 
-            $result = $this->dbh->query($q);
-            SimpleSAML_Logger::info('authqstep: ' . $uid . ' registered his answer: '. $answer);
-        }
+              $result = $this->dbh->query($q);
+              SimpleSAML_Logger::info('authqstep: ' . $uid . ' registered his answer: '. $answer);
+	 } else {
+	   $result = FALSE;
+	 }
+      }
       
       return $result;
     }

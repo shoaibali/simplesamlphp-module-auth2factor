@@ -173,11 +173,15 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
 
 	public function isRegistered($uid)
 	{
-	  $q = "SELECT COUNT(*) as registered_count FROM ssp_answers WHERE uid='$uid'";
-	  $result = $this->dbh->query($q);      
-	  $row = $result->fetch();
-	  $registered =  $row["registered_count"];
-      return ($registered > 0)? TRUE : FALSE;	  
+	  if (strlen($uid) > 0) {
+	    $q = "SELECT COUNT(*) as registered_count FROM ssp_answers WHERE uid='$uid'";
+	    $result = $this->dbh->query($q);      
+	    $row = $result->fetch();
+	    $registered =  $row["registered_count"];
+	    return ($registered > 0)? TRUE : FALSE;	  
+	  } else {
+	    return FALSE;
+	  }
 	}
 
     public function getQuestions(){

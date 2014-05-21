@@ -14,7 +14,8 @@
  *       	'db.username' => 'simplesaml',
  *       	'db.password' => 'password',
  *			'mainAuthSource' => 'ldap',
- *			'uidField' => 'uid'
+ *			'uidField' => 'uid',
+ *		'post_logout_url' => 'http://google.com' //URL to redirect to on logout. Optional
  *        ),
  *
  * @package simpleSAMLphp
@@ -48,6 +49,7 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
     private $db_username;
     private $db_password;
     private $site_salt;
+    private $logoutURL;
     private $dbh;
 
 
@@ -76,6 +78,12 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
 		if (array_key_exists('db.password', $config)) {
 			$this->db_password = $config['db.password'];
 		}
+		if (array_key_exists('post_logout_url', $config)) {
+		   $this->logoutURL = $config['post_logout_url'];
+		} else {
+		   $this->logoutURL = '/logout.php';
+		}
+
 		
 		$globalConfig = SimpleSAML_Configuration::getInstance();
 		if ($globalConfig->hasValue('secretsalt')) {
@@ -95,6 +103,10 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
         $this->createTables();
                
 	}
+
+	public function getLogoutURL() {
+	  return $this->logoutURL;
+	}
 	
 	public function authenticate(&$state) {
 		assert('is_array($state)');
@@ -106,6 +118,16 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
 
 		$url = SimpleSAML_Module::getModuleURL('authqstep/login.php');
 		SimpleSAML_Utilities::redirect($url, array('AuthState' => $id));
+	}
+
+	public function logout(&$state) {
+	       assert('is_array($state)');
+	       $state[self::AUTHID] = $this->authId;
+
+	       $id = SimpleSAML_Auth_State::saveState($state, self::STEPID);
+
+	       $url = SimpleSAML_Module::getModuleURL('authqstep/logout.php');
+	       SimpleSAML_Utilities::redirect($url, array('AuthState' => $id));
 	}
 
 	//Generate a random string of a given length. Used to produce the per-question salt

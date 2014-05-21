@@ -228,6 +228,7 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
     {
       // This check is probably not needed
       if (empty($answers) || empty($questions)) return FALSE;
+      if (strlen($uid) == 0) return FALSE;
       $question_answers = array_combine($answers, $questions);
 
       foreach ($question_answers as $answer => $question) {

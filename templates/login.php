@@ -11,7 +11,13 @@ $this->data['header'] = $this->t('{authqstep:login:authentication}');
 <script type="text/javascript" src="jquery.keyboard.min.js"></script>
 <script type="text/javascript">
 	$(document).ready(function () {
-	  $("input[type='text']").keyboard();
+	  $("input[type='text']").keyboard({
+	    autoAccept: true,
+	    layout: 'custom',
+	    customLayout: {
+	      'default': ['a b c d e f g h i j l m', 'n o p q r s t u v w x y z','{accept} {space} {cancel}']
+	    }
+	  });
 	});
 </script>
 
@@ -40,7 +46,7 @@ $this->data['header'] = $this->t('{authqstep:login:authentication}');
         					echo ('<option value="'.$q['question_id'].'">'.$q['question_text'].'</option>');
         				}
         				echo '</select>';
-        				echo 'Answer: <input name="answers[]" value="" type="text" required="requred">';
+        				echo 'Answer: <input name="answers[]" value="" type="text" required="requred" onkeypress="return false;">';
         				echo '<br/><br/>';
         			}
         		}
@@ -58,7 +64,7 @@ $this->data['header'] = $this->t('{authqstep:login:authentication}');
 			<strong><?php echo $this->data["random_question"]["question_text"]; ?>?</strong>
 			<br/>
 			<input type="hidden" value="<?php echo $this->data['random_question']['question_id'];?>" name="question_id">
-			<input id="answer" class="yubifield" type="text" tabindex="1" name="answer" />
+			<input id="answer" class="yubifield" type="text" tabindex="1" name="answer" onkeypress="return false;"/>
 			<input id="submit" class="submitbutton" type="submit" tabindex="2" name="submit" value="<?php echo $this->t('{authqstep:login:next}')?>"/>
 		</p>
 	</div>

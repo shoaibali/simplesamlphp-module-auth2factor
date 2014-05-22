@@ -55,14 +55,19 @@ if ( !$isRegistered ) {
 		$questions = $_POST["questions"];
 
 		// verify answers are not duplicates
-		// TODO also answers must conform to minimum required length
 		if( (sizeof(array_unique($answers)) != sizeof($answers)) || (sizeof(array_unique($questions)) != sizeof($questions)) ){
 			$errorCode = 'INVALIDQUESTIONANSWERS';
 			$t->data['todo'] = 'selectanswers';
-		} else {			
+		} else {
 			$result = $qaLogin->registerAnswers($uid, $answers, $questions);		
-			// redirect user back to be quized
-			SimpleSAML_Utilities::redirect(SimpleSAML_Utilities::selfURL(), array('AuthState' => $authStateId));
+			if ( ! $result) {
+			  // Failed to register answers for some reason. This is probably because one or more answer is too short
+			  $errorCode = 'SHORTQUESTIONANSWERS';
+			  $t->data['todo'] = 'selectanswers';
+			} else {
+			  // redirect user back to be quized
+			  SimpleSAML_Utilities::redirect(SimpleSAML_Utilities::selfURL(), array('AuthState' => $authStateId));
+			}
 		}
 
 	} else {

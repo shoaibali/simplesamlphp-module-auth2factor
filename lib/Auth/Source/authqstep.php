@@ -114,6 +114,10 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
 	public function getLogoutURL() {
 	  return $this->logoutURL;
 	}
+
+	public function getMinAnswerLength() {
+	  return $this->minAnswerLength;       
+	}	
 	
 	public function authenticate(&$state) {
 		assert('is_array($state)');

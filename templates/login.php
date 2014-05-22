@@ -30,11 +30,15 @@ $this->data['header'] = $this->t('{authqstep:login:authentication}');
         					echo ('<option value="'.$q['question_id'].'">'.$q['question_text'].'</option>');
         				}
         				echo '</select>';
-        				echo 'Answer: <input name="answers[]" value="" type="text" required="requred">';
+        				echo 'Answer: <input name="answers[]" value="" type="text" pattern=".{'.$this->data['minAnswerLength'].',}"';
+					echo 'title="Answers must be at least '.$this->data['minAnswerLength'].' characters long" required="requred">';
         				echo '<br/><br/>';
         			}
         		}
-        	?>        	
+        	?>
+		<? if ( $this->data['minAnswerLength'] > 0 ) : ?>
+		<p>Answers must be at least <? echo $this->data['minAnswerLength'] ?> characters long</p>
+		<? endif; ?>
         	<input class="submitbutton" type="submit" tabindex="2" name="submit" value="<?php echo $this->t('{authqstep:login:next}')?>" />
         </p>
 	</div>

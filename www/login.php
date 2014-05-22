@@ -105,6 +105,7 @@ if ( !$isRegistered ) {
 
 $t->data['stateparams'] = array('AuthState' => $authStateId);
 $t->data['errorcode'] = $errorCode;
+$t->data['minAnswerLength'] = $qaLogin->getMinAnswerLength();
 $t->show();
 exit();
 

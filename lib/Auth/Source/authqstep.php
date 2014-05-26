@@ -83,7 +83,7 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
 		if (array_key_exists('post_logout_url', $config)) {
 		   $this->logoutURL = $config['post_logout_url'];
 		} else {
-		   $this->logoutURL = '/logout.php';
+		   $this->logoutURL = '/logout';
 		}
 		if (array_key_exists('minAnswerLength', $config)) {
 		   $this->minAnswerLength = $config['minAnswerLength'];
@@ -242,8 +242,7 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
     public function registerAnswers($uid,$answers, $questions)
     {
       // This check is probably not needed
-      if (empty($answers) || empty($questions)) return FALSE;
-      if (strlen($uid) == 0) return FALSE;
+      if (empty($answers) || empty($questions) || empty($uid)) return FALSE;
       $question_answers = array_combine($answers, $questions);
 
       foreach ($question_answers as $answer => $question) {

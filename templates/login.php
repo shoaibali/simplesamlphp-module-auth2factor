@@ -6,8 +6,8 @@ $this->data['header'] = $this->t('{authqstep:login:authentication}');
 ?>
 
 <link rel="stylesheet" href="keyboard.css" />
-<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.6/jquery.min.js"></script>
-<script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8/jquery-ui.min.js"></script>
+<script src="jquery.min.js"></script>
+<script src="jquery-ui.min.js"></script>
 <script type="text/javascript" src="jquery.keyboard.min.js"></script>
 <script type="text/javascript">
 	$(document).ready(function () {

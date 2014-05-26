@@ -14,10 +14,12 @@ $this->data['header'] = $this->t('{authqstep:login:authentication}');
 	  $("input[type='text']").keyboard({
 	    autoAccept: true,
 	    layout: 'custom',
+	    lockInput: true,
 	    customLayout: {
-	      'default': ['a b c d e f g h i j k l m', 'n o p q r s t u v w x y z','{accept} {space} {cancel}']
+	      'default': ['0 1 2 3 4 5 6 7 8 9', 'a b c d e f g h i j k l m', 'n o p q r s t u v w x y z','{accept} {space} {cancel}']
 	    }
 	  });
+	  $("input[type='text']").getkeyboard().reveal();
 	});
 </script>
 
@@ -78,6 +80,8 @@ foreach ($this->data['stateparams'] as $name => $value) {
 ?>
 
 </form>
+
+<div id="keyboard"></div>
 
 <?php
 $this->includeAtTemplateBase('includes/footer.php');

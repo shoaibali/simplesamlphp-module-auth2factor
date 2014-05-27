@@ -247,7 +247,7 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
 
       foreach ($question_answers as $answer => $question) {
         // Check that the answer meets the length requirements
-        if (strlen($answer) > $this->minAnswerLength) {
+        if (strlen($answer) >= $this->minAnswerLength) {
   	  $answer_salt = $this->generateRandomString();
 	  $answer_hash = $this->calculateAnswerHash($answer, $this->site_salt, $answer_salt);
               $q = "INSERT INTO ssp_answers (answer_salt, answer_hash, question_id, uid) 

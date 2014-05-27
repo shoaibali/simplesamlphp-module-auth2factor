@@ -5,6 +5,24 @@ $this->data['header'] = $this->t('{authqstep:login:authentication}');
 
 ?>
 
+<link rel="stylesheet" href="keyboard.css" />
+<script src="jquery.min.js"></script>
+<script src="jquery-ui.min.js"></script>
+<script type="text/javascript" src="jquery.keyboard.min.js"></script>
+<script type="text/javascript">
+	$(document).ready(function () {
+	  $("input[type='text']").keyboard({
+	    autoAccept: true,
+	    layout: 'custom',
+	    lockInput: true,
+	    customLayout: {
+	      'default': ['0 1 2 3 4 5 6 7 8 9', 'a b c d e f g h i j k l m', 'n o p q r s t u v w x y z','{accept} {space} {cancel}']
+	    }
+	  });
+	  $("input[type='text']").getkeyboard().reveal();
+	});
+</script>
+
 <? if ($this->data['errorcode'] !== NULL) :?>
 	<div style="border-left: 1px solid #e8e8e8; border-bottom: 1px solid #e8e8e8; background: #f5f5f5">
 		<img src="/<?php echo $this->data['baseurlpath']; ?>resources/icons/experience/gtk-dialog-error.48x48.png" style="float: left; margin: 15px " />
@@ -66,6 +84,8 @@ foreach ($this->data['stateparams'] as $name => $value) {
 ?>
 
 </form>
+
+<div id="keyboard"></div>
 
 <?php
 $this->includeAtTemplateBase('includes/footer.php');

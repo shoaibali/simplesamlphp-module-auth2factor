@@ -58,6 +58,9 @@ if ( !$isRegistered ) {
 		if( (sizeof(array_unique($answers)) != sizeof($answers)) || (sizeof(array_unique($questions)) != sizeof($questions)) ){
 			$errorCode = 'INVALIDQUESTIONANSWERS';
 			$t->data['todo'] = 'selectanswers';
+		} elseif (in_array(0, $questions)) {
+		        $errorCode = 'INCOMPLETEQUESTIONS';
+			$t->data['todo'] = 'selectanswers';
 		} else {
 			$result = $qaLogin->registerAnswers($uid, $answers, $questions);		
 			if ( ! $result) {

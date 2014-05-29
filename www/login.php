@@ -58,7 +58,7 @@ if ( !$isRegistered ) {
 		if( (sizeof(array_unique($answers)) != sizeof($answers)) || (sizeof(array_unique($questions)) != sizeof($questions)) ){
 			$errorCode = 'INVALIDQUESTIONANSWERS';
 			$t->data['todo'] = 'selectanswers';
-		} elseif (in_array(0, $questions)) {
+		} elseif (in_array(0, $questions) || sizeof($answers) < 3) {
 		        $errorCode = 'INCOMPLETEQUESTIONS';
 			$t->data['todo'] = 'selectanswers';
 		} else {

@@ -27,10 +27,12 @@
 	"descr_EMPTYQUESTIONS": {
 		"en": "Please populate the database with questions."
 	},
-        "title_INCOMPLETEQUESTIONS": {
-	        "en": "More answers needed"
+
+	"title_INCOMPLETEQUESTIONS": {
+	  "en": "More answers needed"
 	},
-        "descr_INCOMPLETEQUESTIONS": {
-	       "en": "Please enter answers for more questions"
+	
+  "descr_INCOMPLETEQUESTIONS": {
+   "en": "Please enter answers for more questions"
 	}
 }

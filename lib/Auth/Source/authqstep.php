@@ -9,14 +9,14 @@
  *
  *      'authqstep' => array(
  *       	'authqstep:authqstep',
- *
- *        	'db.dsn' => 'mysql:host=db.example.com;port=3306;dbname=idpauthqstep',
+ *        'db.dsn' => 'mysql:host=db.example.com;port=3306;dbname=idpauthqstep',
  *       	'db.username' => 'simplesaml',
  *       	'db.password' => 'password',
  *		'mainAuthSource' => 'ldap',
  *		'uidField' => 'uid',
  *		'post_logout_url' => 'http://google.com' // URL to redirect to on logout. Optional
- *		'minAnswerLength' => 10 // Minimum answer length. Defaults to 0
+ *    'minAnswerLength' => 10 // Minimum answer length. Defaults to 0
+ *		'initSecretQuestions' => array('Question 1', 'Question 2', 'Question 3') // Optional - Initialise the db with secret questions
  *        ),
  *
  * @package simpleSAMLphp
@@ -96,18 +96,23 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
 		if ($globalConfig->hasValue('secretsalt')) {
 		   	$this->site_salt = $globalConfig->getValue('secretsalt');
 		} else {
-		        /* This is probably redundant, as SimpleSAMLPHP will not let you run without a salt */
-		        die('Authqstep: secretsalt not set in config.php! You should set this immediately!');
+      /* This is probably redundant, as SimpleSAMLPHP will not let you run without a salt */
+      die('Authqstep: secretsalt not set in config.php! You should set this immediately!');
 		}
 
-        $this->tfa_authencontextclassref = self::TFAAUTHNCONTEXTCLASSREF;
-        try {
-          $this->dbh = new PDO($this->db_dsn, $this->db_username, $this->db_password);
-        } catch (PDOException $e) {
-          	var_dump($this->db_dsn, $this->db_username, $this->db_password);
-            echo 'Connection failed: ' . $e->getMessage();
-        }
-        $this->createTables();
+    $this->tfa_authencontextclassref = self::TFAAUTHNCONTEXTCLASSREF;
+    try {
+      $this->dbh = new PDO($this->db_dsn, $this->db_username, $this->db_password);
+    } catch (PDOException $e) {
+        echo 'Connection failed: ' . $e->getMessage();
+        exit();
+    }
+
+    $this->createTables();
+
+    if(array_key_exists('initSecretQuestions', $config)){
+      $this->initQuestions($config['initSecretQuestions']);
+    }
                
 	}
 
@@ -174,13 +179,34 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
 		$result = $this->dbh->query($q);	   
 	}
 
+  private function initQuestions($questions){
+    // Not sure if this is the correct way to use assert
+    if(assert('is_array($questions)')){
+      // make sure table is empty
+      if($this->emptyTable("ssp_questions")) {
+        foreach($questions as $q){
+          $q = "INSERT INTO ssp_questions(question_text) VALUES ('".addslashes($q)."');";
+          $this->dbh->query($q);
+        }
+      }
+    }
+  }
 
-    /**
-     * This method determines if the user's answers are registered 
-     *
-     * @param int $uid
-     * @return bool
-     */
+
+  private function emptyTable($table){
+    $q = "SELECT COUNT(*) as records_count FROM $table";
+    $result = $this->dbh->query($q);      
+    $row = $result->fetch();
+    $records_count =  $row["records_count"];
+    return ($records_count == 0)? TRUE : FALSE;   
+  }
+
+  /**
+   * This method determines if the user's answers are registered 
+   *
+   * @param int $uid
+   * @return bool
+   */
 
 	public function isRegistered($uid)
 	{
@@ -189,7 +215,7 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
 	    $result = $this->dbh->query($q);      
 	    $row = $result->fetch();
 	    $registered =  $row["registered_count"];
-	    return ($registered > 0)? TRUE : FALSE;	  
+  	    return ($registered >= 3)? TRUE : FALSE;	  
 	  } else {
 	    return FALSE;
 	  }
@@ -243,24 +269,24 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
     {
       // This check is probably not needed
       if (empty($answers) || empty($questions) || empty($uid)) return FALSE;
-      $question_answers = array_combine($answers, $questions);
+        $question_answers = array_combine($answers, $questions);
 
       foreach ($question_answers as $answer => $question) {
         // Check that the answer meets the length requirements
         if (strlen($answer) >= $this->minAnswerLength && $question > 0) {
-  	  $answer_salt = $this->generateRandomString();
-	  $answer_hash = $this->calculateAnswerHash($answer, $this->site_salt, $answer_salt);
-              $q = "INSERT INTO ssp_answers (answer_salt, answer_hash, question_id, uid) 
-                      VALUES (\"".$answer_salt."\",
-	  	    	      \"".$answer_hash."\",
-                              \"".$question."\",
-                              \"".$uid."\");";
+      	   $answer_salt = $this->generateRandomString();
+    	     $answer_hash = $this->calculateAnswerHash($answer, $this->site_salt, $answer_salt);
+            $q = "INSERT INTO ssp_answers (answer_salt, answer_hash, question_id, uid) 
+                  VALUES (\"".$answer_salt."\",
+	    	                  \"".$answer_hash."\",
+                          \"".$question."\",
+                          \"".$uid."\");";
 
-              $result = $this->dbh->query($q);
-              SimpleSAML_Logger::info('authqstep: ' . $uid . ' registered his answer: '. $answer);
-	 } else {
-	   $result = FALSE;
-	 }
+            $result = $this->dbh->query($q);
+            SimpleSAML_Logger::info('authqstep: ' . $uid . ' registered his answer: '. $answer . ' for question_id:' . $question);
+          } else {
+            $result = FALSE;
+          }
       }
       
       return $result;
@@ -280,14 +306,14 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
         $match = FALSE;
         
         foreach($answers as $a){
-	    if ($question_id == $a["question_id"]) {
-	       $answer_salt = $a['answer_salt'];
-	       $submitted_hash = $this->calculateAnswerHash($answer, $this->site_salt, $answer_salt);
-	       if($submitted_hash == $a["answer_hash"]) {
-                  $match = TRUE;
-		  break;
-	       }
-	    }
+    	    if ($question_id == $a["question_id"]) {
+    	       $answer_salt = $a['answer_salt'];
+    	       $submitted_hash = $this->calculateAnswerHash($answer, $this->site_salt, $answer_salt);
+    	       if($submitted_hash == $a["answer_hash"]) {
+                $match = TRUE;
+    		  break;
+    	       }
+    	    }
         }
         return $match;
     }

@@ -59,7 +59,7 @@ if ( !$isRegistered ) {
 			$errorCode = 'INVALIDQUESTIONANSWERS';
 			$t->data['todo'] = 'selectanswers';
 		} elseif (in_array(0, $questions) || sizeof($answers) < 3) {
-		        $errorCode = 'INCOMPLETEQUESTIONS';
+		  $errorCode = 'INCOMPLETEQUESTIONS';
 			$t->data['todo'] = 'selectanswers';
 		} else {
 			$result = $qaLogin->registerAnswers($uid, $answers, $questions);		
@@ -69,16 +69,18 @@ if ( !$isRegistered ) {
 			  $t->data['todo'] = 'selectanswers';
 			} else {
 			  // redirect user back to be quized
-			  SimpleSAML_Utilities::redirect(SimpleSAML_Utilities::selfURL(), array('AuthState' => $authStateId));
+			  SimpleSAML_Utilities::redirect(SimpleSAML_Utilities::selfURL(), array('AuthState' => $authStateId,
+			  																																			'Quesetions' => $_POST['questions'],
+			  																																			'Answers' => $_POST['answers']));
 			}
 		}
 
 	} else {
 		$t->data['todo'] = 'selectanswers';	
-	}
-	
-	
-} elseif ( $isRegistered ){
+	}	
+} 
+
+if ( $isRegistered ){
 	// get a random question
 	$random_question = $qaLogin->getRandomQuestion($uid);
 	$t->data['random_question'] = array("question_text" => $random_question["question_text"],
@@ -100,16 +102,12 @@ if ( !$isRegistered ) {
 		$t->data['todo'] = 'loginANSWER';	
 		
 	}
-	
-} else {
-	//User has set up not to use 2 factor, so he is logged in	
-	SimpleSAML_Auth_Source::completeAuth($state);
 }
 
 $t->data['stateparams'] = array('AuthState' => $authStateId);
 $t->data['errorcode'] = $errorCode;
 $t->data['minAnswerLength'] = $qaLogin->getMinAnswerLength();
 $t->show();
-exit();
+//exit();
 
 ?>

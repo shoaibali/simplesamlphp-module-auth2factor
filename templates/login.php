@@ -23,17 +23,19 @@ $this->data['header'] = $this->t('{authqstep:login:authentication}');
 	});
 </script>
 
-<? if ($this->data['errorcode'] !== NULL) :?>
+
+<?php if ($this->data['errorcode'] !== NULL) :?>
 	<div style="border-left: 1px solid #e8e8e8; border-bottom: 1px solid #e8e8e8; background: #f5f5f5">
 		<img src="/<?php echo $this->data['baseurlpath']; ?>resources/icons/experience/gtk-dialog-error.48x48.png" style="float: left; margin: 15px " />
 		<h2><?php echo $this->t('{login:error_header}'); ?></h2>
 		<p><b><?php echo $this->t('{authqstep:errors:title_' . $this->data['errorcode'] . '}'); ?></b></p>
 		<p><?php echo $this->t('{authqstep:errors:descr_' . $this->data['errorcode'] . '}'); ?></p>
 	</div>
-<? endif; ?>
+<?php endif; ?>
+
 
 <form action="?" method="post" name="f" id="form">
-<? if ( $this->data['todo'] == 'selectanswers' ) : ?>
+<?php if ( $this->data['todo'] == 'selectanswers' ) : ?>
 	<h2><?php echo $this->t('{authqstep:login:2step_title}')?></h2>
 	<div class="loginbox">
 		<p class="logintitle"><?php echo $this->t('{authqstep:login:chooseANSWERS}')?></p>
@@ -49,19 +51,19 @@ $this->data['header'] = $this->t('{authqstep:login:authentication}');
         				}
         				echo '</select>';
         				echo 'Answer: <input name="answers[]" value="" type="text" pattern=".{'.$this->data['minAnswerLength'].',}"';
-					echo 'title="Answers must be at least '.$this->data['minAnswerLength'].' characters long" required="requred">';
+					      echo 'title="Answers must be at least '.$this->data['minAnswerLength'].' characters long" required="requred">';
         				echo '<br/><br/>';
         			}
         		}
         	?>
-		<? if ( $this->data['minAnswerLength'] > 0 ) : ?>
-		<p>Answers must be at least <? echo $this->data['minAnswerLength'] ?> characters long</p>
-		<? endif; ?>
+		<?php if ( $this->data['minAnswerLength'] > 0 ) : ?>
+		<p>Answers must be at least <?php echo $this->data['minAnswerLength'] ?> characters long</p>
+		<?php endif; ?>
         	<input class="submitbutton" type="submit" tabindex="2" name="submit" value="<?php echo $this->t('{authqstep:login:next}')?>" />
         </p>
 	</div>
 
-<? elseif ( $this->data['todo'] == 'loginANSWER' ) : ?>
+<?php elseif ( $this->data['todo'] == 'loginANSWER' ) : ?>
 	<h2><?php echo $this->t('{authqstep:login:2step_login}')?></h2>
 	<div class="loginbox">
 		<p class="logintitle">
@@ -75,7 +77,7 @@ $this->data['header'] = $this->t('{authqstep:login:authentication}');
 		</p>
 	</div>
 
-<? endif ; ?>
+<?php endif ; ?>
 
 <?php
 foreach ($this->data['stateparams'] as $name => $value) {

@@ -44,10 +44,25 @@ $this->data['header'] = $this->t('{authqstep:login:authentication}');
         		
         		if(!empty($this->data['questions'])) {
         			for($i=1;$i <=3; $i++){
+
+                $answer_value = "";
+                
+                if(isset($_POST["answers"]) && isset($_POST["questions"])){
+                  $answer_value = $_POST["answers"][$i-1];
+                  $selected_qid = $_POST["questions"][$i-1];
+                }
+
         				echo '<select name="questions[]" required="requred">';
         				echo '<option value="0">--- select question ---</option>';
         				foreach($this->data['questions'] as $question => $q) {
-        					echo ('<option value="'.$q['question_id'].'">'.$q['question_text'].'</option>');
+        				
+                  if(isset($_POST["questions"])){
+                    if($selected_qid == $q["question_id"]){
+                      $selected = " selected";
+                    }
+                  }
+                  echo ('<option value="'.$q['question_id'].'"'. $selected . '>'.$q['question_text'].'</option>');
+                  
         				}
         				echo '</select>';
         				echo 'Answer: <input name="answers[]" value="" type="text" pattern=".{'.$this->data['minAnswerLength'].',}"';

@@ -4,7 +4,7 @@
  * @author Shoaib Ali, Catalyst IT
  *
  * 2 Step authentication module.
- * 
+ *
  * Configure it by adding an entry to config/authsources.php such as this:
  *
  *      'authqstep' => array(
@@ -91,39 +91,39 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
 		   $this->minAnserLength = self::ANSWERMINCHARLENGTH;
 		}
 
-		
 		$globalConfig = SimpleSAML_Configuration::getInstance();
+
 		if ($globalConfig->hasValue('secretsalt')) {
 		   	$this->site_salt = $globalConfig->getValue('secretsalt');
 		} else {
-      /* This is probably redundant, as SimpleSAMLPHP will not let you run without a salt */
-      die('Authqstep: secretsalt not set in config.php! You should set this immediately!');
+            /* This is probably redundant, as SimpleSAMLPHP will not let you run without a salt */
+            die('Authqstep: secretsalt not set in config.php! You should set this immediately!');
 		}
 
-    $this->tfa_authencontextclassref = self::TFAAUTHNCONTEXTCLASSREF;
-    try {
-      $this->dbh = new PDO($this->db_dsn, $this->db_username, $this->db_password);
-    } catch (PDOException $e) {
-        echo 'Connection failed: ' . $e->getMessage();
-        exit();
-    }
+        $this->tfa_authencontextclassref = self::TFAAUTHNCONTEXTCLASSREF;
 
-    $this->createTables();
+        try {
+            $this->dbh = new PDO($this->db_dsn, $this->db_username, $this->db_password);
+        } catch (PDOException $e) {
+            echo 'Connection failed: ' . $e->getMessage();
+            exit();
+        }
 
-    if(array_key_exists('initSecretQuestions', $config)){
-      $this->initQuestions($config['initSecretQuestions']);
-    }
-               
+        $this->createTables();
+
+        if(array_key_exists('initSecretQuestions', $config)){
+            $this->initQuestions($config['initSecretQuestions']);
+        }
 	}
 
 	public function getLogoutURL() {
-	  return $this->logoutURL;
+        return $this->logoutURL;
 	}
 
 	public function getMinAnswerLength() {
-	  return $this->minAnswerLength;       
-	}	
-	
+        return $this->minAnswerLength;
+	}
+
 	public function authenticate(&$state) {
 		assert('is_array($state)');
 
@@ -137,22 +137,22 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
 	}
 
 	public function logout(&$state) {
-	       assert('is_array($state)');
-	       $state[self::AUTHID] = $this->authId;
+        assert('is_array($state)');
+        $state[self::AUTHID] = $this->authId;
 
-	       $id = SimpleSAML_Auth_State::saveState($state, self::STEPID);
+        $id = SimpleSAML_Auth_State::saveState($state, self::STEPID);
 
-	       $url = SimpleSAML_Module::getModuleURL('authqstep/logout.php');
-	       SimpleSAML_Utilities::redirect($url, array('AuthState' => $id));
+        $url = SimpleSAML_Module::getModuleURL('authqstep/logout.php');
+        SimpleSAML_Utilities::redirect($url, array('AuthState' => $id));
 	}
 
 	//Generate a random string of a given length. Used to produce the per-question salt
 	private function generateRandomString($length=15) {
 		$characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    		$randomString = '';
+        $randomString = '';
 		for ($i = 0; $i < $length; $i++) {
-        	    $randomString .= $characters[rand(0, strlen($characters) - 1)];
-    		}
+            $randomString .= $characters[rand(0, strlen($characters) - 1)];
+        }
 		return $randomString;
 	}
 
@@ -172,82 +172,82 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
 		          answer_id INT(11) NOT NULL AUTO_INCREMENT,
 		          PRIMARY KEY(answer_id),
 		          answer_hash VARCHAR(128) NOT NULL,
-			  answer_salt VARCHAR(15) NOT NULL,
+  			      answer_salt VARCHAR(15) NOT NULL,
                   question_id INT(11) NOT NULL,
                   uid VARCHAR(60) NULL
 		         );";
-		$result = $this->dbh->query($q);	   
+		$result = $this->dbh->query($q);
 	}
 
-  private function initQuestions($questions){
-    // Not sure if this is the correct way to use assert
-    if(assert('is_array($questions)')){
-      // make sure table is empty
-      if($this->emptyTable("ssp_questions")) {
-        foreach($questions as $q){
-          $q = "INSERT INTO ssp_questions(question_text) VALUES ('".addslashes($q)."');";
-          $this->dbh->query($q);
+    private function initQuestions($questions){
+        // Not sure if this is the correct way to use assert
+        if(assert('is_array($questions)')){
+            // make sure table is empty
+            if($this->emptyTable("ssp_questions")) {
+                foreach($questions as $q){
+                    $q = "INSERT INTO ssp_questions(question_text) VALUES ('".addslashes($q)."');";
+                    $this->dbh->query($q);
+                }
+            }
         }
-      }
     }
-  }
 
 
-  private function emptyTable($table){
-    $q = "SELECT COUNT(*) as records_count FROM $table";
-    $result = $this->dbh->query($q);      
-    $row = $result->fetch();
-    $records_count =  $row["records_count"];
-    return ($records_count == 0)? TRUE : FALSE;   
-  }
+    private function emptyTable($table){
+        $q = "SELECT COUNT(*) as records_count FROM $table";
+        $result = $this->dbh->query($q);
+        $row = $result->fetch();
+        $records_count =  $row["records_count"];
+        return ($records_count == 0)? TRUE : FALSE;
+    }
 
-  /**
-   * This method determines if the user's answers are registered 
-   *
-   * @param int $uid
-   * @return bool
-   */
+    /**
+     * This method determines if the user's answers are registered
+     *
+     * @param int $uid
+     * @return bool
+     */
 
 	public function isRegistered($uid)
 	{
-	  if (strlen($uid) > 0) {
-	    $q = "SELECT COUNT(*) as registered_count FROM ssp_answers WHERE uid='$uid'";
-	    $result = $this->dbh->query($q);      
-	    $row = $result->fetch();
-	    $registered =  $row["registered_count"];
-  	    return ($registered >= 3)? TRUE : FALSE;	  
-	  } else {
-	    return FALSE;
-	  }
+        if (strlen($uid) > 0) {
+            $q = $this->dbh->prepare("SELECT COUNT(*) as registered_count FROM ssp_answers WHERE uid=':uid'");
+            $result = $q->execute([':uid' => $uid]);
+            $row = $result->fetch();
+            $registered =  $row["registered_count"];
+            return ($registered >= 3)? TRUE : FALSE;
+        } else {
+            return FALSE;
+        }
 	}
 
     public function getQuestions(){
-      $q = "SELECT * FROM ssp_questions;";
-      $result = $this->dbh->query($q);      
-      $row = $result->fetchAll();
-      
-      if(empty($row)){
-        return false;
-      }
-      return $row;
+        $q = "SELECT * FROM ssp_questions;";
+        $result = $this->dbh->query($q);
+        $row = $result->fetchAll();
+
+        if(empty($row)){
+            return false;
+        }
+        return $row;
     }
 
     public function getAnswersFromUID($uid)
     {
-      $q = "SELECT * FROM ssp_answers WHERE uid='$uid'";
-      $result = $this->dbh->query($q);
-      $rows = $result->fetchAll();
-      return $rows;
+        $q = $this->dbh->prepare("SELECT * FROM ssp_answers WHERE uid=':uid'");
+        $result = $q->execute([':uid' => $uid]);
+        $rows = $result->fetchAll();
+        return $rows;
     }
 
     public function getRandomQuestion($uid){
-        $q = "SELECT ssp_answers.question_id, ssp_questions.question_text FROM ssp_answers, ssp_questions WHERE ssp_answers.uid='$uid' AND ssp_answers.question_id = ssp_questions.question_id;";        
-        
-        $result = $this->dbh->query($q);
+        $q = $this->dbh->prepare("SELECT ssp_answers.question_id, ssp_questions.question_text FROM ssp_answers, ssp_questions WHERE ssp_answers.uid=':uid' AND ssp_answers.question_id = ssp_questions.question_id;");
+        $result = $q->execute([':uid' => $uid]);
+
         $rows = $result->fetchAll();
         // array_rand is quicker then SQL ORDER BY RAND()
-        $random_question = $rows[array_rand($rows)];        
-        // TODO this question needs to be made persistent 
+        $random_question = $rows[array_rand($rows)];
+        // TODO this question needs to be made persistent
         // so that user is challenged for same random question
         return array_unique($random_question);
     }
@@ -265,32 +265,31 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
      * @return bool
      */
 
-    public function registerAnswers($uid,$answers, $questions)
-    {
-      // This check is probably not needed
-      if (empty($answers) || empty($questions) || empty($uid)) return FALSE;
+    public function registerAnswers($uid,$answers, $questions) {
+        // This check is probably not needed
+        if (empty($answers) || empty($questions) || empty($uid)) return FALSE;
         $question_answers = array_combine($answers, $questions);
 
-      foreach ($question_answers as $answer => $question) {
-        // Check that the answer meets the length requirements
-        if (strlen($answer) >= $this->minAnswerLength && $question > 0) {
-      	   $answer_salt = $this->generateRandomString();
-    	     $answer_hash = $this->calculateAnswerHash($answer, $this->site_salt, $answer_salt);
-            $q = "INSERT INTO ssp_answers (answer_salt, answer_hash, question_id, uid) 
-                  VALUES (\"".$answer_salt."\",
-	    	                  \"".$answer_hash."\",
-                          \"".$question."\",
-                          \"".$uid."\");";
+        foreach ($question_answers as $answer => $question) {
+            // Check that the answer meets the length requirements
+            if (strlen($answer) >= $this->minAnswerLength && $question > 0) {
+                $answer_salt = $this->generateRandomString();
+                $answer_hash = $this->calculateAnswerHash($answer, $this->site_salt, $answer_salt);
+                $q = $this->dbh->prepare("INSERT INTO ssp_answers (answer_salt, answer_hash, question_id, uid) VALUES (:answer_salt, :answer_hash, :question, :uid)");
 
-            $result = $this->dbh->query($q);
-            SimpleSAML_Logger::info('authqstep: ' . $uid . ' registered his answer: '. $answer . ' for question_id:' . $question);
-          } else {
-            $result = FALSE;
-          }
-      }
-      
-      return $result;
+                $result = $q.execute([':answer_salt' => $answer_salt,
+                                      ':answer_hash' => $answer_hash,
+                                      ':question' => $question,
+                                      ':uid' => $uid]);
+
+                SimpleSAML_Logger::debug('authqstep: ' . $uid . ' registered his answer: '. $answer . ' for question_id:' . $question);
+            } else {
+                $result = FALSE;
+            }
+        }
+        return $result;
     }
+
 
     /**
      * Verify user submitted answer against their question
@@ -300,19 +299,18 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
      * @param string $answer
      * @return bool
      */
-
     public function verifyAnswer($uid, $question_id, $answer){
         $answers = self::getAnswersFromUID($uid);
         $match = FALSE;
-        
+
         foreach($answers as $a){
     	    if ($question_id == $a["question_id"]) {
-    	       $answer_salt = $a['answer_salt'];
-    	       $submitted_hash = $this->calculateAnswerHash($answer, $this->site_salt, $answer_salt);
-    	       if($submitted_hash == $a["answer_hash"]) {
-                $match = TRUE;
-    		  break;
-    	       }
+                $answer_salt = $a['answer_salt'];
+                $submitted_hash = $this->calculateAnswerHash($answer, $this->site_salt, $answer_salt);
+                if($submitted_hash == $a["answer_hash"]) {
+                    $match = TRUE;
+                    break;
+                }
     	    }
         }
         return $match;

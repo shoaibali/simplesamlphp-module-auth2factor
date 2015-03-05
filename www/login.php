@@ -93,7 +93,7 @@ if ( $isRegistered ){
 
 // do this if it's sms code
 	// check age of code - regen if old or empty
-	sprintf('%06d', mt_rand(0, 999999);
+	sprintf('%06d', mt_rand(0, 999999));
 
 
 	$t->data['autofocus'] = 'answer';

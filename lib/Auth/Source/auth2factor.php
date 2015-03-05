@@ -223,7 +223,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
         if (strlen($uid) > 0) {
             $q = $this->dbh->prepare("SELECT COUNT(*) as registered_count FROM ssp_answers WHERE uid=':uid'");
             $result = $q->execute([':uid' => $uid]);
-            $row = $result->fetch();
+            $row = $q->fetch();
             $registered =  $row["registered_count"];
             return ($registered >= 3)? TRUE : FALSE;
         } else {
@@ -238,9 +238,9 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
      * @return array
      */
     public function get2FactorFromUID($uid){
-        $q = $this->dbh->query("SELECT * FROM ssp_user_2factor WHERE uid=':uid'");
+        $q = $this->dbh->prepare("SELECT * FROM ssp_user_2factor WHERE uid=':uid'");
         $result = $q->execute([':uid' => $uid]);
-        $rows = $result->fetchAll();
+        $rows = $q->fetchAll();
         if(empty($rows)){
             return array('uid' => $uid, 'challenge_type' => 'question');
         }
@@ -255,11 +255,11 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
      * @return bool
      */
     public function set2Factor($uid, $type, $code="") {
-        $q = $this->dbh->query("INSERT INTO ssp_user_2factor (uid, challenge_type, last_code, last_code_stamp)
-                                VALUES (:uid,
-                                        :type,
-                                        :code,
-                                        NOW()) ON DUPLICATE KEY UPDATE challenge_type=':type', last_code=':code', last_code_stamp=NOW();");
+        $q = $this->dbh->prepare("INSERT INTO ssp_user_2factor (uid, challenge_type, last_code, last_code_stamp)
+                                  VALUES (:uid,
+                                          :type,
+                                          :code,
+                                          NOW()) ON DUPLICATE KEY UPDATE challenge_type=':type', last_code=':code', last_code_stamp=NOW();");
 
         $result = $q->execute([':uid' => $uid, ':type' => $type, ':code' => $code]);
         SimpleSAML_Logger::debug('auth2factor: ' . $uid . ' set preferences: '. $type . ' code:' . $code);
@@ -282,7 +282,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
     {
         $q = $this->dbh->prepare("SELECT * FROM ssp_answers WHERE uid=':uid'");
         $result = $q->execute([':uid' => $uid]);
-        $rows = $result->fetchAll();
+        $rows = $q->fetchAll();
         return $rows;
     }
 
@@ -290,7 +290,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
         $q = $this->dbh->prepare("SELECT ssp_answers.question_id, ssp_questions.question_text FROM ssp_answers, ssp_questions WHERE ssp_answers.uid=':uid' AND ssp_answers.question_id = ssp_questions.question_id;");
         $result = $q->execute([':uid' => $uid]);
 
-        $rows = $result->fetchAll();
+        $rows = $q->fetchAll();
         // array_rand is quicker then SQL ORDER BY RAND()
         $random_question = $rows[array_rand($rows)];
         // TODO this question needs to be made persistent

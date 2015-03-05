@@ -221,11 +221,17 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
 	public function isRegistered($uid)
 	{
         if (strlen($uid) > 0) {
-            $q = $this->dbh->prepare("SELECT COUNT(*) as registered_count FROM ssp_answers WHERE uid=':uid'");
+            $q = $this->dbh->prepare("SELECT COUNT(*) as registered_count FROM ssp_answers WHERE uid=:uid");
             $result = $q->execute([':uid' => $uid]);
             $row = $q->fetch();
             $registered =  $row["registered_count"];
-            return ($registered >= 3)? TRUE : FALSE;
+            if ($registered >= 3){
+                SimpleSAML_Logger::debug('User '.$uid.' is registered, '.$registered.' answers');
+                return TRUE;
+            } else {
+                SimpleSAML_Logger::debug('User '.$uid.' is NOT registered, '.$registered.' answers');
+                return FALSE;
+            }
         } else {
             return FALSE;
         }
@@ -238,7 +244,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
      * @return array
      */
     public function get2FactorFromUID($uid){
-        $q = $this->dbh->prepare("SELECT * FROM ssp_user_2factor WHERE uid=':uid'");
+        $q = $this->dbh->prepare("SELECT * FROM ssp_user_2factor WHERE uid=:uid");
         $result = $q->execute([':uid' => $uid]);
         $rows = $q->fetchAll();
         if(empty($rows)){
@@ -259,7 +265,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
                                   VALUES (:uid,
                                           :type,
                                           :code,
-                                          NOW()) ON DUPLICATE KEY UPDATE challenge_type=':type', last_code=':code', last_code_stamp=NOW();");
+                                          NOW()) ON DUPLICATE KEY UPDATE challenge_type=:type, last_code=:code, last_code_stamp=NOW();");
 
         $result = $q->execute([':uid' => $uid, ':type' => $type, ':code' => $code]);
         SimpleSAML_Logger::debug('auth2factor: ' . $uid . ' set preferences: '. $type . ' code:' . $code);
@@ -280,14 +286,14 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
 
     public function getAnswersFromUID($uid)
     {
-        $q = $this->dbh->prepare("SELECT * FROM ssp_answers WHERE uid=':uid'");
+        $q = $this->dbh->prepare("SELECT * FROM ssp_answers WHERE uid=:uid");
         $result = $q->execute([':uid' => $uid]);
         $rows = $q->fetchAll();
         return $rows;
     }
 
     public function getRandomQuestion($uid){
-        $q = $this->dbh->prepare("SELECT ssp_answers.question_id, ssp_questions.question_text FROM ssp_answers, ssp_questions WHERE ssp_answers.uid=':uid' AND ssp_answers.question_id = ssp_questions.question_id;");
+        $q = $this->dbh->prepare("SELECT ssp_answers.question_id, ssp_questions.question_text FROM ssp_answers, ssp_questions WHERE ssp_answers.uid=:uid AND ssp_answers.question_id = ssp_questions.question_id;");
         $result = $q->execute([':uid' => $uid]);
 
         $rows = $q->fetchAll();
@@ -323,10 +329,10 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
                 $answer_hash = $this->calculateAnswerHash($answer, $this->site_salt, $answer_salt);
                 $q = $this->dbh->prepare("INSERT INTO ssp_answers (answer_salt, answer_hash, question_id, uid) VALUES (:answer_salt, :answer_hash, :question, :uid)");
 
-                $result = $q.execute([':answer_salt' => $answer_salt,
-                                      ':answer_hash' => $answer_hash,
-                                      ':question' => $question,
-                                      ':uid' => $uid]);
+                $result = $q->execute([':answer_salt' => $answer_salt,
+                                       ':answer_hash' => $answer_hash,
+                                       ':question' => $question,
+                                       ':uid' => $uid]);
 
                 SimpleSAML_Logger::debug('authqstep: ' . $uid . ' registered his answer: '. $answer . ' for question_id:' . $question);
             } else {

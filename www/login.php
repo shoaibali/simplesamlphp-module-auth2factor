@@ -47,6 +47,8 @@ $uid = $attributes[ $as['uidField'] ][0];
 $state['UserID'] = $uid;
 $isRegistered = $qaLogin->isRegistered($uid);
 
+$prefs = $qaLogin->get2FactorFromUID($uid);
+
 if ( !$isRegistered ) {
 	//If the user has not set his preference of 2 factor authentication, redirect to settings page
 	if ( isset($_POST['answers']) && isset($_POST['questions']) ){

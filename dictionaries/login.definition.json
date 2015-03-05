@@ -8,6 +8,18 @@
 	"next": {
 		"en": "Next"
 	},
+	"switchtosms": {
+		"en": "Switch to SMS"
+	},
+	"switchtoq": {
+		"en": "Switch to Questions"
+	},
+	"smscode": {
+		"en": "SMS Code"
+	},
+	"entersmscode": {
+		"en": "Please enter the 6 digit code received via SMS TXT message"
+	},
 	"2step_title": {
 		"en": "Set up two-step authentication"
 	},

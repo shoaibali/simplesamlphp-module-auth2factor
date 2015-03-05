@@ -7,9 +7,9 @@
  *
  * Configure it by adding an entry to config/authsources.php such as this:
  *
- *      'authqstep' => array(
- *       	'authqstep:authqstep',
- *        'db.dsn' => 'mysql:host=db.example.com;port=3306;dbname=idpauthqstep',
+ *      'auth2factor' => array(
+ *       	'auth2factor:auth2factor',
+ *        'db.dsn' => 'mysql:host=db.example.com;port=3306;dbname=idpauth2factor',
  *       	'db.username' => 'simplesaml',
  *       	'db.password' => 'password',
  *		'mainAuthSource' => 'ldap',
@@ -23,12 +23,12 @@
  * @version $Id$
  */
 
-class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
+class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source {
 
 	/**
 	 * The string used to identify our step.
 	 */
-	const STEPID = 'authqstep.step';
+	const STEPID = 'auth2factor.step';
 
 	/**
 	 * Default minimum length of secret answer required. Can be overridden in the config
@@ -38,7 +38,7 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
 	/**
 	 * The key of the AuthId field in the state.
 	 */
-	const AUTHID = 'sspmod_authqstep_Auth_Source_authqstep.AuthId';
+	const AUTHID = 'sspmod_auth2factor_Auth_Source_auth2factor.AuthId';
 
     /**
      *   sstc-saml-loa-authncontext-profile-draft.odt
@@ -96,8 +96,8 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
 		if ($globalConfig->hasValue('secretsalt')) {
 		   	$this->site_salt = $globalConfig->getValue('secretsalt');
 		} else {
-            /* This is probably redundant, as SimpleSAMLPHP will not let you run without a salt */
-            die('Authqstep: secretsalt not set in config.php! You should set this immediately!');
+      /* This is probably redundant, as SimpleSAMLPHP will not let you run without a salt */
+      die('Auth2factor: secretsalt not set in config.php! You should set this immediately!');
 		}
 
         $this->tfa_authencontextclassref = self::TFAAUTHNCONTEXTCLASSREF;
@@ -132,7 +132,7 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
 
 		$id = SimpleSAML_Auth_State::saveState($state, self::STEPID);
 
-		$url = SimpleSAML_Module::getModuleURL('authqstep/login.php');
+		$url = SimpleSAML_Module::getModuleURL('auth2factor/login.php');
 		SimpleSAML_Utilities::redirect($url, array('AuthState' => $id));
 	}
 
@@ -177,6 +177,17 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
                   uid VARCHAR(60) NULL
 		         );";
 		$result = $this->dbh->query($q);
+
+    /* Create table to hold user preferences */
+    $q = "CREATE TABLE IF NOT EXISTS ssp_user_2factor (
+              uid VARCHAR(60) NOT NULL,
+              PRIMARY KEY(uid),
+              challenge_type ENUM('question', 'sms') NOT NULL,
+              last_code VARCHAR(10) NULL,
+              last_code_stamp TIMESTAMP NULL,
+              UNIQUE KEY uid (uid)
+             );";
+    $result = $this->dbh->query($q);
 	}
 
     private function initQuestions($questions){
@@ -190,7 +201,9 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
                 }
             }
         }
+      }
     }
+  }
 
 
     private function emptyTable($table){
@@ -220,6 +233,42 @@ class sspmod_authqstep_Auth_Source_authqstep extends SimpleSAML_Auth_Source {
             return FALSE;
         }
 	}
+
+    /**
+     * Get user preferences from database
+     *
+     * @param int $uid
+     * @return array
+     */
+    public function get2FactorFromUID($uid){
+      $q = "SELECT * FROM ssp_user_2factor WHERE uid='$uid'";
+      $result = $this->dbh->query($q);
+      $rows = $result->fetchAll();
+      if(empty($rows)){
+        return array('uid' => $uid, 'challenge_type' => 'question');
+      }
+      return $rows[0];
+    }
+
+    /**
+     * Saves user 2nd Factor preferences to database
+     *
+     * @param int $uid
+     * @param string $type
+     * @return bool
+     */
+    public function set2Factor($uid, $type, $code="") {
+      $q = "INSERT INTO ssp_user_2factor (uid, challenge_type, last_code, last_code_stamp)
+            VALUES (\"".$uid."\",
+                    \"".$type."\",
+                    \"".$code."\",
+                    NOW()) ON DUPLICATE KEY UPDATE challenge_type=\"".$type."\", last_code=\"".$code."\", last_code_stamp=NOW();";
+
+      $result = $this->dbh->query($q);
+      SimpleSAML_Logger::info('auth2factor: ' . $uid . ' set preferences: '. $type . ' code:' . $code);
+
+      return $result;
+    }
 
     public function getQuestions(){
         $q = "SELECT * FROM ssp_questions;";

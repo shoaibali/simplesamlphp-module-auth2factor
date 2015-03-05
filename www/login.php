@@ -6,20 +6,20 @@
  * @version $Id$
  */
 
-$as = SimpleSAML_Configuration::getConfig('authsources.php')->getValue('authqstep');
+$as = SimpleSAML_Configuration::getConfig('authsources.php')->getValue('auth2factor');
 
 // Get session object
 $session = SimpleSAML_Session::getInstance();
 
 // Get the authetication state
 $authStateId = $_REQUEST['AuthState'];
-$state = SimpleSAML_Auth_State::loadState($authStateId,'authqstep.step');
+$state = SimpleSAML_Auth_State::loadState($authStateId,'auth2factor.step');
 
 // Use 2 step authentication class
-$qaLogin = SimpleSAML_Auth_Source::getById('authqstep');
+$qaLogin = SimpleSAML_Auth_Source::getById('auth2factor');
 
 // Init template
-$template = 'authqstep:login.php';
+$template = 'auth2factor:login.php';
 $globalConfig = SimpleSAML_Configuration::getInstance();
 $t = new SimpleSAML_XHTML_Template($globalConfig, $template);
 
@@ -81,30 +81,82 @@ if ( !$isRegistered ) {
 }
 
 if ( $isRegistered ){
+
+
+// do this if it's questions
+
+
 	// get a random question
 	$random_question = $qaLogin->getRandomQuestion($uid);
 	$t->data['random_question'] = array("question_text" => $random_question["question_text"],
                                         "question_id" => $random_question["question_id"]);
-	//Ask the user for answer to a randomly selected question
-	if ( isset( $_POST['answer'] ) ) {
-		$loggedIn = $qaLogin->verifyAnswer($uid, $_POST['question_id'], $_POST['answer']);
-		if ($loggedIn){
-			$state['saml:AuthnContextClassRef'] = $qaLogin->tfa_authencontextclassref;
-			SimpleSAML_Auth_Source::completeAuth($state);
-		} else {
-			$errorCode = 'WRONGANSWER';
-			$t->data['todo'] = 'loginANSWER';
+
+// do this if it's sms code
+	// check age of code - regen if old or empty
+	sprintf('%06d', mt_rand(0, 999999);
+
+
+	$t->data['autofocus'] = 'answer';
+	$t->data['todo'] = 'loginANSWER';
+	if (isset( $_POST['submit'] )) {
+
+		// if the form was submitted
+		switch ($_POST['submit']) {
+			// Next button pushed
+			case $t->t('{auth2factor:login:next}'):
+
+				// is this questions ?
+				if ( isset( $_POST['answer'] ) ){
+					//Ask the user for answer to a randomly selected question
+					if ($prefs['challenge_type'] == 'question') {
+						$loggedIn = $qaLogin->verifyAnswer($uid, $_POST['question_id'], $_POST['answer']);
+						if ($loggedIn){
+							$state['saml:AuthnContextClassRef'] = $qaLogin->tfa_authencontextclassref;
+							SimpleSAML_Auth_Source::completeAuth($state);
+						} else {
+							$errorCode = 'WRONGANSWER';
+							$t->data['todo'] = 'loginANSWER';
+						}
+					}
+					else {
+					// this is sms code
+
+					// check code - if OK and not expired - login and wipe the code so one will be
+					// regenerated next time
+
+					}
+				}
+
+				break;
+
+			// Switch to Questions button pushed
+			case $t->t('{auth2factor:login:switchtoq}'):
+				error_log('switchtoq');
+				$qaLogin->set2Factor($uid, 'question');
+				break;
+
+			// Switch to SMS button pushed
+			case $t->t('{auth2factor:login:switchtosms}'):
+				error_log('switchtosms');
+				$qaLogin->set2Factor($uid, 'sms');
+				break;
+
+			default:
+				break;
 		}
 
-	} else {
-		$t->data['autofocus'] = 'answer';
-		$t->data['todo'] = 'loginANSWER';
+//	} else {
+//		$t->data['autofocus'] = 'answer';
+//		$t->data['todo'] = 'loginANSWER';
 	}
 }
 
 $t->data['stateparams'] = array('AuthState' => $authStateId);
 $t->data['errorcode'] = $errorCode;
 $t->data['minAnswerLength'] = $qaLogin->getMinAnswerLength();
+// get the preferences agains as they may have changed above
+$prefs = $qaLogin->get2FactorFromUID($uid);
+$t->data['useSMS'] = ($prefs['challenge_type'] == 'question' ? false : true);
 $t->show();
 
 ?>

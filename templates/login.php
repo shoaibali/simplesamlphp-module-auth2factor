@@ -1,7 +1,7 @@
 <?php
 
 $this->includeAtTemplateBase('includes/header.php');
-$this->data['header'] = $this->t('{authqstep:login:authentication}');
+$this->data['header'] = $this->t('{auth2factor:login:authentication}');
 
 ?>
 
@@ -9,6 +9,8 @@ $this->data['header'] = $this->t('{authqstep:login:authentication}');
 <script src="jquery.min.js"></script>
 <script src="jquery-ui.min.js"></script>
 <script type="text/javascript" src="jquery.keyboard.min.js"></script>
+<!-- Only activate the virtual keyboard if we are doing questions -->
+<?php if ( $this->data['useSMS'] == false ) : ?>
 <script type="text/javascript">
 	$(document).ready(function () {
 	  $("input[type='text']").keyboard({
@@ -22,23 +24,24 @@ $this->data['header'] = $this->t('{authqstep:login:authentication}');
 	  $("input[type='text']").getkeyboard().reveal();
 	});
 </script>
+<?php endif; ?>
 
 
 <?php if ($this->data['errorcode'] !== NULL) :?>
 	<div style="border-left: 1px solid #e8e8e8; border-bottom: 1px solid #e8e8e8; background: #f5f5f5">
 		<img src="/<?php echo $this->data['baseurlpath']; ?>resources/icons/experience/gtk-dialog-error.48x48.png" style="float: left; margin: 15px " />
 		<h2><?php echo $this->t('{login:error_header}'); ?></h2>
-		<p><b><?php echo $this->t('{authqstep:errors:title_' . $this->data['errorcode'] . '}'); ?></b></p>
-		<p><?php echo $this->t('{authqstep:errors:descr_' . $this->data['errorcode'] . '}'); ?></p>
+		<p><b><?php echo $this->t('{auth2factor:errors:title_' . $this->data['errorcode'] . '}'); ?></b></p>
+		<p><?php echo $this->t('{auth2factor:errors:descr_' . $this->data['errorcode'] . '}'); ?></p>
 	</div>
 <?php endif; ?>
 
 
 <form action="?" method="post" name="f" id="form">
 <?php if ( $this->data['todo'] == 'selectanswers' ) : ?>
-	<h2><?php echo $this->t('{authqstep:login:2step_title}')?></h2>
+	<h2><?php echo $this->t('{auth2factor:login:2step_title}')?></h2>
 	<div class="loginbox">
-		<p class="logintitle"><?php echo $this->t('{authqstep:login:chooseANSWERS}')?></p>
+		<p class="logintitle"><?php echo $this->t('{auth2factor:login:chooseANSWERS}')?></p>
         <p>
         	<?php
         		
@@ -74,22 +77,26 @@ $this->data['header'] = $this->t('{authqstep:login:authentication}');
 		<?php if ( $this->data['minAnswerLength'] > 0 ) : ?>
 		<p>Answers must be at least <?php echo $this->data['minAnswerLength'] ?> characters long</p>
 		<?php endif; ?>
-        	<input class="submitbutton" type="submit" tabindex="2" name="submit" value="<?php echo $this->t('{authqstep:login:next}')?>" />
+        	<input class="submitbutton" type="submit" tabindex="2" name="submit" value="<?php echo $this->t('{auth2factor:login:next}')?>" />
         </p>
 	</div>
 
 <?php elseif ( $this->data['todo'] == 'loginANSWER' ) : ?>
-	<h2><?php echo $this->t('{authqstep:login:2step_login}')?></h2>
+	<h2><?php echo $this->t('{auth2factor:login:2step_login}')?></h2>
 	<div class="loginbox">
 		<p class="logintitle">
-			<?php echo $this->t('{authqstep:login:verficiationanswer}')?>
-			<br/> 
-			<strong><?php echo $this->data["random_question"]["question_text"]; ?>?</strong>
+			<?php echo ($this->data['useSMS'] == true ? $this->t('{auth2factor:login:entersmscode}') : $this->t('{auth2factor:login:verficiationanswer}') )?>
+			<br/>
+			<strong><?php echo ($this->data['useSMS'] == true ? $this->t('{auth2factor:login:smscode}') : $this->data["random_question"]["question_text"]); ?>?</strong>
 			<br/>
 			<input type="hidden" value="<?php echo $this->data['random_question']['question_id'];?>" name="question_id">
 			<input id="answer" class="yubifield" type="text" tabindex="1" name="answer" />
-			<input id="submit" class="submitbutton" type="submit" tabindex="2" name="submit" value="<?php echo $this->t('{authqstep:login:next}')?>"/>
-		</p>
+			<input id="submit" class="submitbutton" type="submit" tabindex="2" name="submit" value="<?php echo $this->t('{auth2factor:login:next}')?>"/>
+            <?php if ( $this->data['useSMS'] == true ) : ?>
+            <input class="submitbutton" type="submit" tabindex="3" name="submit" value="<?php echo $this->t('{auth2factor:login:switchtoq}')?>" />
+            <?php else : ?>
+            <input class="submitbutton" type="submit" tabindex="3" name="submit" value="<?php echo $this->t('{auth2factor:login:switchtosms}')?>" />
+            <?php endif; ?>		</p>
 	</div>
 
 <?php endif ; ?>

@@ -178,8 +178,8 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
 		         );";
 		$result = $this->dbh->query($q);
 
-    /* Create table to hold user preferences */
-    $q = "CREATE TABLE IF NOT EXISTS ssp_user_2factor (
+        /* Create table to hold user preferences */
+        $q = "CREATE TABLE IF NOT EXISTS ssp_user_2factor (
               uid VARCHAR(60) NOT NULL,
               PRIMARY KEY(uid),
               challenge_type ENUM('question', 'sms') NOT NULL,
@@ -187,7 +187,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
               last_code_stamp TIMESTAMP NULL,
               UNIQUE KEY uid (uid)
              );";
-    $result = $this->dbh->query($q);
+        $result = $this->dbh->query($q);
 	}
 
     private function initQuestions($questions){
@@ -201,10 +201,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
                 }
             }
         }
-      }
     }
-  }
-
 
     private function emptyTable($table){
         $q = "SELECT COUNT(*) as records_count FROM $table";
@@ -241,13 +238,13 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
      * @return array
      */
     public function get2FactorFromUID($uid){
-      $q = "SELECT * FROM ssp_user_2factor WHERE uid='$uid'";
-      $result = $this->dbh->query($q);
-      $rows = $result->fetchAll();
-      if(empty($rows)){
-        return array('uid' => $uid, 'challenge_type' => 'question');
-      }
-      return $rows[0];
+        $q = $this->dbh->query("SELECT * FROM ssp_user_2factor WHERE uid=':uid'");
+        $result = $q->execute([':uid' => $uid]);
+        $rows = $result->fetchAll();
+        if(empty($rows)){
+            return array('uid' => $uid, 'challenge_type' => 'question');
+        }
+        return $rows[0];
     }
 
     /**
@@ -258,16 +255,16 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
      * @return bool
      */
     public function set2Factor($uid, $type, $code="") {
-      $q = "INSERT INTO ssp_user_2factor (uid, challenge_type, last_code, last_code_stamp)
-            VALUES (\"".$uid."\",
-                    \"".$type."\",
-                    \"".$code."\",
-                    NOW()) ON DUPLICATE KEY UPDATE challenge_type=\"".$type."\", last_code=\"".$code."\", last_code_stamp=NOW();";
+        $q = $this->dbh->query("INSERT INTO ssp_user_2factor (uid, challenge_type, last_code, last_code_stamp)
+                                VALUES (:uid,
+                                        :type,
+                                        :code,
+                                        NOW()) ON DUPLICATE KEY UPDATE challenge_type=':type', last_code=':code', last_code_stamp=NOW();");
 
-      $result = $this->dbh->query($q);
-      SimpleSAML_Logger::info('auth2factor: ' . $uid . ' set preferences: '. $type . ' code:' . $code);
+        $result = $q->execute([':uid' => $uid, ':type' => $type, ':code' => $code]);
+        SimpleSAML_Logger::debug('auth2factor: ' . $uid . ' set preferences: '. $type . ' code:' . $code);
 
-      return $result;
+        return $result;
     }
 
     public function getQuestions(){

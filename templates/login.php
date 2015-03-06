@@ -43,6 +43,8 @@ $this->data['header'] = $this->t('{auth2factor:login:authentication}');
     <div class="loginbox">
         <p class="logintitle"><?php echo $this->t('{auth2factor:login:chooseANSWERS}')?></p>
             <p>
+
+
             <?php
             if(!empty($this->data['questions'])) {
                 for($i=1;$i <=3; $i++){

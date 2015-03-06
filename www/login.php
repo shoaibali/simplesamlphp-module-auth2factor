@@ -49,7 +49,13 @@ $isRegistered = $qaLogin->isRegistered($uid);
 
 $prefs = $qaLogin->get2FactorFromUID($uid);
 
+/******************************
+ *       NEW USERS
+ ******************************/
+
 if ( !$isRegistered ) {
+
+
     //If the user has not set his preference of 2 factor authentication, redirect to settings page
     if ( isset($_POST['answers']) && isset($_POST['questions']) ){
         // Save answers
@@ -78,9 +84,38 @@ if ( !$isRegistered ) {
         }
 
     } else {
-        $t->data['todo'] = 'selectanswers';
+        $t->data['todo'] = 'selectauthpref';
+
+        // We are setting the preference of user for the first time
+        if(isset($_POST["authpref"])) {
+            $t->data['todo'] = 'selectanswers';
+
+            switch ($_POST['authpref']) {
+
+                case "qanda":
+                    $qaLogin->set2Factor($uid, 'question');
+                    $t->data['todo'] = 'selectanswers';
+                    //SimpleSAML_Utilities::redirect(SimpleSAML_Utilities::selfURL(), array('AuthState' => $authStateId));
+                    break;
+                case "pin":
+                    $qaLogin->set2Factor($uid, 'sms');
+                    $t->data['todo'] = 'selectanswers';
+                    //SimpleSAML_Utilities::redirect(SimpleSAML_Utilities::selfURL(), array('AuthState' => $authStateId));
+                    break;
+                default:
+                    break;
+            }
+
+        }
+
+        //$t->data['todo'] = 'selectanswers';
     }
 }
+
+
+/******************************
+ *          EXISTING USERS
+ ******************************/
 
 if ( $isRegistered ){
 
@@ -133,13 +168,13 @@ if ( $isRegistered ){
 
             // Switch to Questions button pushed
             case $t->t('{auth2factor:login:switchtoq}'):
-                error_log('switchtoq');
+                //error_log('switchtoq');
                 $qaLogin->set2Factor($uid, 'question');
                 break;
 
             // Switch to SMS button pushed
             case $t->t('{auth2factor:login:switchtosms}'):
-                error_log('switchtosms');
+                //error_log('switchtosms');
                 $qaLogin->set2Factor($uid, 'sms');
                 break;
 

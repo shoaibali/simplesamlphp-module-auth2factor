@@ -182,7 +182,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
         $q = "CREATE TABLE IF NOT EXISTS ssp_user_2factor (
               uid VARCHAR(60) NOT NULL,
               PRIMARY KEY(uid),
-              challenge_type ENUM('question', 'sms') NOT NULL,
+              challenge_type ENUM('question', 'sms', 'email') NOT NULL,
               last_code VARCHAR(10) NULL,
               last_code_stamp TIMESTAMP NULL,
               UNIQUE KEY uid (uid)

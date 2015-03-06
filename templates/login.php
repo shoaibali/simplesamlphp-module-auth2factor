@@ -38,7 +38,20 @@ $this->data['header'] = $this->t('{auth2factor:login:authentication}');
 
 
 <form action="?" method="post" name="f" id="form">
-    <?php if ( $this->data['todo'] == 'selectanswers' ) : ?>
+    <?php if ( $this->data['todo'] == 'selectauthpref' ) : ?>
+
+        As second factor authentication what would you like to use
+        <br/>
+        <ul>
+            <li><input type="radio" name="authpref" value="qanda" checked="checked"> Secret question &amp; answers?</li>
+            <li> <input type="radio" name="authpref" value="pin"> PIN code via Email?</li>
+        </ul>
+    <p>For future login attempts, above selected preference will be applied. Option to switch different second step authentication will be available</p>
+
+    <input class="submitbutton" type="submit" tabindex="2" name="submit" value="<?php echo $this->t('{auth2factor:login:next}')?>" />
+
+
+    <?php elseif ( $this->data['todo'] == 'selectanswers' ) : ?>
     <h2><?php echo $this->t('{auth2factor:login:2step_title}')?></h2>
     <div class="loginbox">
         <p class="logintitle"><?php echo $this->t('{auth2factor:login:chooseANSWERS}')?></p>
@@ -48,28 +61,27 @@ $this->data['header'] = $this->t('{auth2factor:login:authentication}');
             <?php
             if(!empty($this->data['questions'])) {
                 for($i=1;$i <=3; $i++){
-            $answer_value = "";
-            if(isset($_POST["answers"]) && isset($_POST["questions"])){
-                $answer_value = $_POST["answers"][$i-1];
-                $selected_qid = $_POST["questions"][$i-1];
-            }
+                    $answer_value = "";
+                    if(isset($_POST["answers"]) && isset($_POST["questions"])){
+                        $answer_value = $_POST["answers"][$i-1];
+                        $selected_qid = $_POST["questions"][$i-1];
+                    }
+                        echo '<select name="questions[]" required="requred">';
+                        echo '<option value="0">--- select question ---</option>';
 
-                echo '<select name="questions[]" required="requred">';
-                echo '<option value="0">--- select question ---</option>';
-
-                foreach($this->data['questions'] as $question => $q) {
-                $selected = '';
-                if(isset($_POST["questions"])){
-                if($selected_qid == $q["question_id"]){
-                    $selected = " selected";
-                }
-                }
-                echo ('<option value="'.$q['question_id'].'"'. $selected . '>'.$q['question_text'].'</option>');
-                }
-                echo '</select>';
-                echo 'Answer: <input name="answers[]" value="" type="text" pattern=".{'.$this->data['minAnswerLength'].',}"';
-                echo 'title="Answers must be at least '.$this->data['minAnswerLength'].' characters long" required="requred">';
-                echo '<br/><br/>';
+                    foreach($this->data['questions'] as $question => $q) {
+                        $selected = '';
+                        if(isset($_POST["questions"])){
+                            if($selected_qid == $q["question_id"]){
+                                $selected = " selected";
+                            }
+                        }
+                        echo ('<option value="'.$q['question_id'].'"'. $selected . '>'.$q['question_text'].'</option>');
+                    }
+                    echo '</select>';
+                    echo 'Answer: <input name="answers[]" value="" type="text" pattern=".{'.$this->data['minAnswerLength'].',}"';
+                    echo 'title="Answers must be at least '.$this->data['minAnswerLength'].' characters long" required="requred">';
+                    echo '<br/><br/>';
                 }
             }
             ?>

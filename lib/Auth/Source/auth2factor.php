@@ -35,6 +35,11 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
    */
   const ANSWERMINCHARLENGTH = 0;
 
+    /**
+     * Length of an SMS/Mail single use code
+     */
+    const SINGLEUSECODELENGTH = 8;
+
   /**
    * The key of the AuthId field in the state.
    */
@@ -46,6 +51,13 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
 
     const TFAAUTHNCONTEXTCLASSREF = 'urn:oasis:names:tc:SAML:2.0:post:ac:classes:nist-800-63:3';
 
+    /**
+     * 2 Factor type constants
+     */
+    const FACTOR_MAIL = 'mail';
+    const FACTOR_SMS = 'sms';
+    const FACTOR_QUESTION = 'question';
+
     private $db_dsn;
     private $db_username;
     private $db_password;
@@ -53,6 +65,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
     private $logoutURL;
     private $dbh;
     private $minAnswerLength;
+    private $singleUseCodeLength;
 
 
     public $tfa_authencontextclassref;
@@ -89,6 +102,12 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
        $this->minAnswerLength = $config['minAnswerLength'];
     } else {
        $this->minAnserLength = self::ANSWERMINCHARLENGTH;
+    }
+
+    if (array_key_exists('singleUseCodeLength', $config)) {
+        $this->singleUseCodeLength = $config['singleUseCodeLength'];
+    } else {
+        $this->singleUseCodeLength = self::SINGLEUSECODELENGTH;
     }
 
     $globalConfig = SimpleSAML_Configuration::getInstance();
@@ -158,17 +177,17 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
 
   private function createTables()
   {
-        /* Create table to hold questions */
-        $q = "CREATE TABLE IF NOT EXISTS ssp_questions (
+      /* Create table to hold questions */
+      $q = "CREATE TABLE IF NOT EXISTS ssp_questions (
                   question_id INT (11) NOT NULL AUTO_INCREMENT,
                   PRIMARY KEY(question_id),
                   question_text VARCHAR(255) NOT NULL
                  );";
 
-        $result = $this->dbh->query($q);
+      $result = $this->dbh->query($q);
 
-        /* Create table to hold answers */
-    $q = "CREATE TABLE IF NOT EXISTS ssp_answers (
+      /* Create table to hold answers */
+      $q = "CREATE TABLE IF NOT EXISTS ssp_answers (
               answer_id INT(11) NOT NULL AUTO_INCREMENT,
               PRIMARY KEY(answer_id),
               answer_hash VARCHAR(128) NOT NULL,
@@ -176,18 +195,19 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
                   question_id INT(11) NOT NULL,
                   uid VARCHAR(60) NULL
              );";
-    $result = $this->dbh->query($q);
+      $result = $this->dbh->query($q);
 
-        /* Create table to hold user preferences */
-        $q = "CREATE TABLE IF NOT EXISTS ssp_user_2factor (
+      /* Create table to hold user preferences */
+      // simple string concatenation is safe here because constants
+      $q = "CREATE TABLE IF NOT EXISTS ssp_user_2factor (
               uid VARCHAR(60) NOT NULL,
               PRIMARY KEY(uid),
-              challenge_type ENUM('question', 'sms', 'email') NOT NULL,
+              challenge_type ENUM('".self::FACTOR_QUESTION."', '".self::FACTOR_SMS."', '".self::FACTOR_MAIL."') NOT NULL,
               last_code VARCHAR(10) NULL,
               last_code_stamp TIMESTAMP NULL,
               UNIQUE KEY uid (uid)
              );";
-        $result = $this->dbh->query($q);
+      $result = $this->dbh->query($q);
   }
 
     private function initQuestions($questions){
@@ -248,8 +268,10 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
         $result = $q->execute([':uid' => $uid]);
         $rows = $q->fetchAll();
         if(empty($rows)){
-            return array('uid' => $uid, 'challenge_type' => 'question');
+            SimpleSAML_Logger::debug('auth2factor: use has no default prefs');
+            return array('uid' => $uid, 'challenge_type' => self::FACTOR_QUESTION);
         }
+        SimpleSAML_Logger::debug('auth2factor: using method '. $rows[0]['challenge_type']);
         return $rows[0];
     }
 
@@ -271,6 +293,13 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
         SimpleSAML_Logger::debug('auth2factor: ' . $uid . ' set preferences: '. $type . ' code:' . $code);
 
         return $result;
+    }
+
+    public function sendMailCode($uid) {
+        $code = $this->generateRandomString($this->singleUseCodeLength);
+        $this->set2Factor($uid, self::FACTOR_MAIL, $code);
+        SimpleSAML_Logger::debug('auth2factor: sending '.self::FACTOR_MAIL.' code: '. $code);
+        //TODO: send mail code
     }
 
     public function getQuestions(){
@@ -366,6 +395,27 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
           }
         }
         return $match;
+    }
+
+    public function verifyChallenge($uid, $answer) {
+        $q = $this->dbh->prepare("SELECT uid, last_code, last_code_stamp FROM ssp_user_2factor WHERE uid=:uid ORDER BY last_code_stamp DESC;");
+        $result = $q->execute([':uid' => $uid]);
+        $rows = $q->fetchAll();
+        if (count($rows) == 0) {
+            SimpleSAML_Logger::debug('User '.$uid.' has no challenge');
+            return false;
+        } else if (count($rows) > 1) {
+            SimpleSAML_Logger::debug('User '.$uid.' has multiple prefs rows');
+        } else if (strlen($rows[0]['last_code']) != $this->singleUseCodeLength) {
+            SimpleSAML_Logger::debug('User '.$uid.' stored code is too short');
+            return false;
+        } else if ($rows[0]['last_code'] === $answer) {
+            // TODO: check if code has expired
+            SimpleSAML_Logger::debug('User '.$uid.' passed good code');
+            $q = $this->dbh->prepare("UPDATE ssp_user_2factor SET last_code=NULL,last_code_stamp=NULL WHERE uid=:uid;");
+            $result = $q->execute([':uid' => $uid]);
+            return true;
+        }
     }
 
 }

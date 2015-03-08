@@ -96,21 +96,28 @@ $this->data['header'] = $this->t('{auth2factor:login:authentication}');
     <h2><?php echo $this->t('{auth2factor:login:2step_login}')?></h2>
     <div class="loginbox">
         <p class="logintitle">
-        <?php echo ($this->data['useSMS'] == true ? $this->t('{auth2factor:login:entersmscode}') : $this->t('{auth2factor:login:verficiationanswer}') )?>
+        <?php echo ($this->t('{auth2factor:login:verficiationanswer}') )?>
         <br/>
-        <strong><?php echo ($this->data['useSMS'] == true ? $this->t('{auth2factor:login:smscode}') : $this->data["random_question"]["question_text"]); ?>?</strong>
+        <strong><?php echo ($this->data["random_question"]["question_text"]); ?>?</strong>
         <br/>
         <input type="hidden" value="<?php echo $this->data['random_question']['question_id'];?>" name="question_id">
         <input id="answer" class="yubifield" type="text" tabindex="1" name="answer" />
         <input id="submit" class="submitbutton" type="submit" tabindex="2" name="submit" value="<?php echo $this->t('{auth2factor:login:next}')?>"/>
-        <?php if ( $this->data['useSMS'] == true ) : ?>
-            <input class="submitbutton" type="submit" tabindex="3" name="submit" value="<?php echo $this->t('{auth2factor:login:switchtoq}')?>" />
-        <?php else : ?>
-            <input class="submitbutton" type="submit" tabindex="3" name="submit" value="<?php echo $this->t('{auth2factor:login:switchtosms}')?>" />
-        <?php endif; ?>
+        <input class="submitbutton" type="submit" tabindex="3" name="submit" value="<?php echo $this->t('{auth2factor:login:switchtomail}')?>" />
         </p>
     </div>
-
+    <?php elseif ( $this->data['todo'] == 'loginCode' ) : ?>
+    <div class="loginbox">
+        <p class="logintitle">
+        <?php echo ($this->t('{auth2factor:login:entersmscode}'))?>
+        <br/>
+        <strong><?php echo ($this->t('{auth2factor:login:smscode}')); ?>?</strong>
+        <br/>
+        <input id="answer" class="yubifield" type="text" tabindex="1" name="answer" />
+        <input id="submit" class="submitbutton" type="submit" tabindex="2" name="submit" value="<?php echo $this->t('{auth2factor:login:next}')?>"/>
+        <input class="submitbutton" type="submit" tabindex="3" name="submit" value="<?php echo $this->t('{auth2factor:login:switchtoq}')?>" />
+        </p>
+    </div>
     <?php endif ; ?>
 
     <?php

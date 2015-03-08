@@ -11,6 +11,9 @@
 	"switchtosms": {
 		"en": "Switch to SMS"
 	},
+    	"switchtomail": {
+		"en": "Switch to Email Code"
+	},
 	"switchtoq": {
 		"en": "Switch to Questions"
 	},

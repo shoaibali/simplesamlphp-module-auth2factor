@@ -128,6 +128,10 @@ if ( $isRegistered ){
     $t->data['random_question'] = array("question_text" => $random_question["question_text"],
                                         "question_id" => $random_question["question_id"]);
 
+// do this if it's sms code
+    // check age of code - regen if old or empty
+    sprintf('%06d', mt_rand(0, 999999));
+
 
     $t->data['autofocus'] = 'answer';
     if ($prefs['challenge_type'] == 'question') {

@@ -94,8 +94,10 @@ if ( !$isRegistered ) {
                 case "qanda":
                     $qaLogin->set2Factor($uid, 'question');
                     $t->data['todo'] = 'selectanswers';
+                    $t->data['useSMS'] = false;
                     break;
                 case "pin":
+                    $qaLogin->set2Factor($uid, 'mail');
                     $qaLogin->sendMailCode($uid);
                     $t->data['todo'] = 'loginCode';
                     break;
@@ -106,8 +108,6 @@ if ( !$isRegistered ) {
         } else {
             $t->data['todo'] = 'selectauthpref';
         }
-
-        //$t->data['todo'] = 'selectanswers';
     }
 }
 
@@ -118,19 +118,22 @@ if ( !$isRegistered ) {
 
 if ( $isRegistered ){
 
-
-
-
     // do this if it's questions
-    // get a random question
-    $random_question = $qaLogin->getRandomQuestion($uid);
-    $t->data['random_question'] = array("question_text" => $random_question["question_text"],
-                                        "question_id" => $random_question["question_id"]);
+
     $t->data['autofocus'] = 'answer';
     
-    if ($prefs['challenge_type'] == 'question') {
+    //var_dump(count($qaLogin->getAnswersFromUID($uid))); die();
+
+    if ($prefs['challenge_type'] == 'question' && (count($qaLogin->getAnswersFromUID($uid)))) {
 
         $t->data['todo'] = 'loginANSWER';
+        $t->data['useSMS'] = false;
+
+        // get a random question
+        $random_question = $qaLogin->getRandomQuestion($uid);
+        $t->data['random_question'] = array("question_text" => $random_question["question_text"],
+                                        "question_id" => $random_question["question_id"]);
+
     } else {
         $t->data['todo'] = 'loginCode';
         if(!$qaLogin->hasMailCode($uid)) {
@@ -175,14 +178,30 @@ if ( $isRegistered ){
             // Switch to Questions button pushed
             case $t->t('{auth2factor:login:switchtoq}'):
                 //error_log('switchtoq');
+
+                if(count($qaLogin->getAnswersFromUID($uid))) {
+                    // get a random question
+                    $random_question = $qaLogin->getRandomQuestion($uid);
+                    $t->data['random_question'] = array("question_text" => $random_question["question_text"],
+                                            "question_id" => $random_question["question_id"]);
+                }
+
+                $qaLogin->set2Factor($uid, 'question');
+
                 $t->data['todo'] = 'loginANSWER';
                 $qaLogin->set2Factor($uid, 'question');
                 $t->data['useSMS'] = false;
+                // check if the user has registered questions if not ask them to register
+                if (!$qaLogin->isRegistered($uid)) {
+                    $t->data['todo'] = 'selectanswers';
+                }
+
                 break;
 
             // Switch to SMS button pushed
             case $t->t('{auth2factor:login:switchtomail}'):
                 //error_log('switchtosms');
+                $qaLogin->set2Factor($uid, 'mail');
                 $qaLogin->sendMailCode($uid);
                 $t->data['todo'] = 'loginCode';
                 $t->data['useSMS'] = true;

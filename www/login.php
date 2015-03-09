@@ -50,6 +50,7 @@ $isRegistered = $qaLogin->isRegistered($uid);
 $prefs = $qaLogin->get2FactorFromUID($uid);
 $t->data['useSMS'] = true;
 
+
 /******************************
  *       NEW USERS
  ******************************/
@@ -90,7 +91,6 @@ if ( !$isRegistered ) {
         if(isset($_POST["authpref"])) {
             $t->data['todo'] = 'selectanswers';
             switch ($_POST['authpref']) {
-
                 case "qanda":
                     $qaLogin->set2Factor($uid, 'question');
                     $t->data['todo'] = 'selectanswers';
@@ -103,9 +103,10 @@ if ( !$isRegistered ) {
                     break;
             }
 
+        } else {
+            $t->data['todo'] = 'selectauthpref';
         }
 
-        //$t->data['todo'] = 'selectauthpref';
         //$t->data['todo'] = 'selectanswers';
     }
 }

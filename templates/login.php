@@ -12,7 +12,7 @@ $this->data['header'] = $this->t('{auth2factor:login:authentication}');
 <!-- Only activate the virtual keyboard if we are doing questions -->
 <?php if ( !$this->data['useSMS'] ) : ?>
     <script type="text/javascript">
-                      /*    $(document).ready(function () {
+    $(document).ready(function () {
     $("input[type='text']").keyboard({
         autoAccept: true,
         layout: 'custom',
@@ -21,8 +21,8 @@ $this->data['header'] = $this->t('{auth2factor:login:authentication}');
         'default': ['0 1 2 3 4 5 6 7 8 9', 'a b c d e f g h i j k l m', 'n o p q r s t u v w x y z','{accept} {space} {cancel}']
         }
     });
-//$("input[type='text']").getkeyboard().reveal();
-});*/
+    $("input[type='text']").getkeyboard().reveal();
+    });
     </script>
 <?php endif; ?>
 
@@ -109,9 +109,9 @@ $this->data['header'] = $this->t('{auth2factor:login:authentication}');
     <?php elseif ( $this->data['todo'] == 'loginCode' ) : ?>
     <div class="loginbox">
         <p class="logintitle">
-        <?php echo ($this->t('{auth2factor:login:entersmscode}'))?>
+        <?php echo ($this->t('{auth2factor:login:entermailcode}'))?>
         <br/>
-        <strong><?php echo ($this->t('{auth2factor:login:smscode}')); ?>?</strong>
+        <strong><?php echo ($this->t('{auth2factor:login:mailcode}')); ?>?</strong>
         <br/>
         <input id="answer" class="yubifield" type="text" tabindex="1" name="answer" />
         <input id="submit" class="submitbutton" type="submit" tabindex="2" name="submit" value="<?php echo $this->t('{auth2factor:login:next}')?>"/>

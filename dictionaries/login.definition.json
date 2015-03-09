@@ -23,6 +23,12 @@
 	"entersmscode": {
 		"en": "Please enter the 6 digit code received via SMS TXT message"
 	},
+	"mailcode": {
+		"en": "Mail Code"
+	},
+	"entermailcode": {
+		"en": "Please enter the 6 digit code received via Mail message"
+	},	
 	"2step_title": {
 		"en": "Set up two-step authentication"
 	},

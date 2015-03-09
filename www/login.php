@@ -132,8 +132,9 @@ if ( $isRegistered ){
     // check age of code - regen if old or empty
     sprintf('%06d', mt_rand(0, 999999));
 
-
+    $t->data['useSMS'] = true;
     $t->data['autofocus'] = 'answer';
+
     if ($prefs['challenge_type'] == 'question') {
         $t->data['todo'] = 'loginANSWER';
     } else {
@@ -179,13 +180,17 @@ if ( $isRegistered ){
             // Switch to Questions button pushed
             case $t->t('{auth2factor:login:switchtoq}'):
                 //error_log('switchtoq');
+                $t->data['todo'] = 'loginANSWER';
                 $qaLogin->set2Factor($uid, 'question');
+                $t->data['useSMS'] = false;
                 break;
 
             // Switch to SMS button pushed
             case $t->t('{auth2factor:login:switchtomail}'):
                 //error_log('switchtosms');
-                $qaLogin->set2Factor($uid, 'mail');
+                $qaLogin->sendMailCode($uid);
+                $t->data['todo'] = 'loginCode';
+                $t->data['useSMS'] = true;
                 break;
 
             default:
@@ -203,7 +208,6 @@ $t->data['errorcode'] = $errorCode;
 $t->data['minAnswerLength'] = $qaLogin->getMinAnswerLength();
 // get the preferences agains as they may have changed above
 $prefs = $qaLogin->get2FactorFromUID($uid);
-$t->data['useSMS'] = false;
 
 if (!$t->data['todo'] == 'selectauthpref') {
     if ($prefs['challenge_type'] == 'question') {

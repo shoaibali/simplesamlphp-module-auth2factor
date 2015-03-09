@@ -14,10 +14,11 @@
  *        'db.password' => 'password',
  *        'mainAuthSource' => 'ldap',
  *        'uidField' => 'uid',
- *        'mailField' => 'email'
+ *        'mailField' => 'email',
  *        'post_logout_url' => 'http://google.com', // URL to redirect to on logout. Optional
  *        'minAnswerLength' => 10, // Minimum answer length. Defaults to 0
  *        'initSecretQuestions' => array('Question 1', 'Question 2', 'Question 3') // Optional - Initialise the db with secret questions
+ *        'maxCodeAge' => 60 * 5 // Maximum age for a one time code. Defaults to 5 minutes
  *        ),
  *
  * @package simpleSAMLphp
@@ -59,6 +60,12 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
     const FACTOR_SMS = 'sms';
     const FACTOR_QUESTION = 'question';
 
+    /**
+     * Default maximum code age
+     */
+
+    const MAXCODEAGE = 300; //60 * 5
+
     private $db_dsn;
     private $db_username;
     private $db_password;
@@ -67,7 +74,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
     private $dbh;
     private $minAnswerLength;
     private $singleUseCodeLength;
-
+    private $maxCodeAge;
 
     public $tfa_authencontextclassref;
 
@@ -111,6 +118,11 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
         $this->singleUseCodeLength = self::SINGLEUSECODELENGTH;
     }
 
+    if (array_key_exists('maxCodeAge', $config)) {
+        $this->maxCodeAge = $config['maxCodeAge'];
+    } else {
+        $this->maxCodeAge = self::MAXCODEAGE;
+    }
     $globalConfig = SimpleSAML_Configuration::getInstance();
 
     if ($globalConfig->hasValue('secretsalt')) {
@@ -310,7 +322,6 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
     }
 
     public function hasMailCode($uid) {
-        // TODO: check for code expiry
         $q = $this->dbh->prepare("SELECT uid, last_code, last_code_stamp FROM ssp_user_2factor WHERE uid=:uid ORDER BY last_code_stamp DESC;");
         $result = $q->execute([':uid' => $uid]);
         $rows = $q->fetchAll();
@@ -319,9 +330,22 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
             return false;
         } else if (count($rows) > 1) {
             SimpleSAML_Logger::debug('User '.$uid.' has multiple prefs rows');
-            return true;
-        } else if (strlen($rows[0]['last_code']) != $this->singleUseCodeLength) {
+        }
+
+        $age = date_diff(new DateTime(), date_create($rows[0]['last_code_stamp']));
+        $age_s = $age->s;
+        $age_s += $age->i * 60;
+        $age_s += $age->h * 60 * 60;
+        $age_s += $age->d * 60 * 60 * 24;
+        $age_s += $age->m * 60 * 60 * 24 * 30; // Codes don't live for more than a few minutes, so this is an OK assumption
+        $age_s += $age->y * 60 * 60 * 24 * 30 * 12;
+        SimpleSAML_Logger::debug('User code age '. $age_s);
+
+        if (strlen($rows[0]['last_code']) != $this->singleUseCodeLength) {
             SimpleSAML_Logger::debug('User '.$uid.' stored code is too short');
+            return false;
+        } else if ($age_s > $this->maxCodeAge) {
+            SimpleSAML_Logger::debug('User '.$uid.' stored code has expired');
             return false;
         } else {
             return true;

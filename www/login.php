@@ -208,6 +208,11 @@ if ( $isRegistered ){
                 $t->data['useSMS'] = true;
                 break;
 
+            case $t->t('{auth2factor:login:resend}'):
+                $qaLogin->sendMailCode($uid, $email);
+                $t->data['todo'] = 'loginCode';
+                $t->data['useSMS'] = true;
+                break;
             default:
                 break;
         }

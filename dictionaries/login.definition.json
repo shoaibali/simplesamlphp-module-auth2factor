@@ -43,5 +43,8 @@
 	},
 	"2step_login": {
 		"en": "Complete login with answer to secret question."
-	}	
+	},
+    "resend": {
+	"en": "Resend code"
+    }
 }

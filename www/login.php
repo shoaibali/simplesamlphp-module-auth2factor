@@ -73,7 +73,7 @@ if ( !$isRegistered ) {
             $t->data['todo'] = 'selectanswers';
         } else {
             $result = $qaLogin->registerAnswers($uid, $answers, $questions);
-            if ( ! $result) {
+            if (!$result) {
                 // Failed to register answers for some reason. This is probably because one or more answer is too short
                 $errorCode = 'SHORTQUESTIONANSWERS';
                 $t->data['todo'] = 'selectanswers';
@@ -120,14 +120,15 @@ if ( $isRegistered ){
 
 
 
-    $t->data['autofocus'] = 'answer';
 
+    // do this if it's questions
+    // get a random question
+    $random_question = $qaLogin->getRandomQuestion($uid);
+    $t->data['random_question'] = array("question_text" => $random_question["question_text"],
+                                        "question_id" => $random_question["question_id"]);
+    $t->data['autofocus'] = 'answer';
+    
     if ($prefs['challenge_type'] == 'question') {
-        // do this if it's questions
-        // get a random question
-        $random_question = $qaLogin->getRandomQuestion($uid);
-        $t->data['random_question'] = array("question_text" => $random_question["question_text"],
-                                            "question_id" => $random_question["question_id"]);
 
         $t->data['todo'] = 'loginANSWER';
     } else {
@@ -136,6 +137,7 @@ if ( $isRegistered ){
             $qaLogin->sendMailCode($uid);
         }
     }
+
     if (isset( $_POST['submit'] )) {
 
         // if the form was submitted
@@ -190,9 +192,9 @@ if ( $isRegistered ){
                 break;
         }
 
-//  } else {
-//      $t->data['autofocus'] = 'answer';
-//      $t->data['todo'] = 'loginANSWER';
+    // } else {
+    //      $t->data['autofocus'] = 'answer';
+    //      $t->data['todo'] = 'loginANSWER';
     }
 }
 
@@ -213,6 +215,7 @@ if (!$t->data['todo'] == 'selectauthpref') {
         }
     }
 }
+
 $t->show();
 
 ?>

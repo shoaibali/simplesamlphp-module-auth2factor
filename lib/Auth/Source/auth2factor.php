@@ -372,13 +372,14 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
      */
 
     public function registerAnswers($uid,$answers, $questions) {
+
         // This check is probably not needed
         if (empty($answers) || empty($questions) || empty($uid)) return FALSE;
         $question_answers = array_combine($answers, $questions);
 
         foreach ($question_answers as $answer => $question) {
             // Check that the answer meets the length requirements
-            if (strlen($answer) >= $this->minAnswerLength && $question > 0) {
+            if ( (strlen($answer) >= $this->minAnswerLength) && $question > 0) {
                 $answer_salt = $this->generateRandomString();
                 $answer_hash = $this->calculateAnswerHash($answer, $this->site_salt, $answer_salt);
                 $q = $this->dbh->prepare("INSERT INTO ssp_answers (answer_salt, answer_hash, question_id, uid) VALUES (:answer_salt, :answer_hash, :question, :uid)");
@@ -388,6 +389,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
                                        ':question' => $question,
                                        ':uid' => $uid]);
 
+                var_dump($result);
                 SimpleSAML_Logger::debug('authqstep: ' . $uid . ' registered his answer: '. $answer . ' for question_id:' . $question);
             } else {
                 $result = FALSE;

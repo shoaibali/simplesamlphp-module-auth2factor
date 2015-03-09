@@ -10,9 +10,9 @@ $this->data['header'] = $this->t('{auth2factor:login:authentication}');
 <script src="jquery-ui.min.js"></script>
 <script type="text/javascript" src="jquery.keyboard.min.js"></script>
 <!-- Only activate the virtual keyboard if we are doing questions -->
-<?php if ( $this->data['useSMS'] == false ) : ?>
+<?php if ( !$this->data['useSMS'] ) : ?>
     <script type="text/javascript">
-    $(document).ready(function () {
+                      /*    $(document).ready(function () {
     $("input[type='text']").keyboard({
         autoAccept: true,
         layout: 'custom',
@@ -21,8 +21,8 @@ $this->data['header'] = $this->t('{auth2factor:login:authentication}');
         'default': ['0 1 2 3 4 5 6 7 8 9', 'a b c d e f g h i j k l m', 'n o p q r s t u v w x y z','{accept} {space} {cancel}']
         }
     });
-    $("input[type='text']").getkeyboard().reveal();
-    });
+//$("input[type='text']").getkeyboard().reveal();
+});*/
     </script>
 <?php endif; ?>
 

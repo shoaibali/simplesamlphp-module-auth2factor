@@ -302,6 +302,25 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
         //TODO: send mail code
     }
 
+    public function hasMailCode($uid) {
+        // TODO: check for code expiry
+        $q = $this->dbh->prepare("SELECT uid, last_code, last_code_stamp FROM ssp_user_2factor WHERE uid=:uid ORDER BY last_code_stamp DESC;");
+        $result = $q->execute([':uid' => $uid]);
+        $rows = $q->fetchAll();
+        if (count($rows) == 0) {
+            SimpleSAML_Logger::debug('User '.$uid.' has no challenge');
+            return false;
+        } else if (count($rows) > 1) {
+            SimpleSAML_Logger::debug('User '.$uid.' has multiple prefs rows');
+            return true;
+        } else if (strlen($rows[0]['last_code']) != $this->singleUseCodeLength) {
+            SimpleSAML_Logger::debug('User '.$uid.' stored code is too short');
+            return false;
+        } else {
+            return true;
+        }
+    }
+
     public function getQuestions(){
         $q = "SELECT * FROM ssp_questions;";
         $result = $this->dbh->query($q);
@@ -398,23 +417,22 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
     }
 
     public function verifyChallenge($uid, $answer) {
-        $q = $this->dbh->prepare("SELECT uid, last_code, last_code_stamp FROM ssp_user_2factor WHERE uid=:uid ORDER BY last_code_stamp DESC;");
-        $result = $q->execute([':uid' => $uid]);
-        $rows = $q->fetchAll();
-        if (count($rows) == 0) {
-            SimpleSAML_Logger::debug('User '.$uid.' has no challenge');
-            return false;
-        } else if (count($rows) > 1) {
-            SimpleSAML_Logger::debug('User '.$uid.' has multiple prefs rows');
-        } else if (strlen($rows[0]['last_code']) != $this->singleUseCodeLength) {
-            SimpleSAML_Logger::debug('User '.$uid.' stored code is too short');
-            return false;
-        } else if ($rows[0]['last_code'] === $answer) {
-            // TODO: check if code has expired
-            SimpleSAML_Logger::debug('User '.$uid.' passed good code');
-            $q = $this->dbh->prepare("UPDATE ssp_user_2factor SET last_code=NULL,last_code_stamp=NULL WHERE uid=:uid;");
+        if ($this->hasMailCode($uid)) {
+            $q = $this->dbh->prepare("SELECT uid, last_code, last_code_stamp FROM ssp_user_2factor WHERE uid=:uid ORDER BY last_code_stamp DESC;");
             $result = $q->execute([':uid' => $uid]);
-            return true;
+            $rows = $q->fetchAll();
+            if ($rows[0]['last_code'] === $answer) {
+                SimpleSAML_Logger::debug('User '.$uid.' passed good code');
+                $q = $this->dbh->prepare("UPDATE ssp_user_2factor SET last_code=NULL,last_code_stamp=NULL WHERE uid=:uid;");
+                $result = $q->execute([':uid' => $uid]);
+                return true;
+            } else {
+                SimpleSAML_Logger::debug('User '.$uid.' passed bad code. "'.$rows[0]['last_code'].'" !== "'.$answer.'"');
+                return false;
+            }
+        } else {
+            SimpleSAML_Logger::debug('User '.$uid.' does not have a code');
+            return false;
         }
     }
 

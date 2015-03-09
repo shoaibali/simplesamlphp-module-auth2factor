@@ -138,6 +138,9 @@ if ( $isRegistered ){
         $t->data['todo'] = 'loginANSWER';
     } else {
         $t->data['todo'] = 'loginCode';
+        if(!$qaLogin->hasMailCode($uid)) {
+            $qaLogin->sendMailCode($uid);
+        }
     }
     if (isset( $_POST['submit'] )) {
 
@@ -182,7 +185,7 @@ if ( $isRegistered ){
             // Switch to SMS button pushed
             case $t->t('{auth2factor:login:switchtomail}'):
                 //error_log('switchtosms');
-                $qaLogin->sendMailCode($uid);
+                $qaLogin->set2Factor($uid, 'mail');
                 break;
 
             default:
@@ -208,6 +211,9 @@ if (!$t->data['todo'] == 'selectauthpref') {
     } else {
         $t->data['useSMS'] = true;
         $t->data['todo'] = 'loginCode';
+        if(!$qaLogin->hasMailCode($uid)) {
+            $qaLogin->sendMailCode($uid);
+        }
     }
 }
 $t->show();

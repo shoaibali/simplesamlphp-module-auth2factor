@@ -249,6 +249,10 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
                 SimpleSAML_Logger::debug('User '.$uid.' is registered, '.$registered.' answers');
                 return TRUE;
             } else {
+                if ($this->get2FactorFromUID($uid)) {
+                  return TRUE;
+                  SimpleSAML_Logger::debug('User '.$uid.' is registered for PIN code');
+                }
                 SimpleSAML_Logger::debug('User '.$uid.' is NOT registered, '.$registered.' answers');
                 return FALSE;
             }

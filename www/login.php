@@ -48,6 +48,7 @@ $state['UserID'] = $uid;
 $isRegistered = $qaLogin->isRegistered($uid);
 
 $prefs = $qaLogin->get2FactorFromUID($uid);
+$t->data['useSMS'] = true;
 
 /******************************
  *       NEW USERS
@@ -84,23 +85,19 @@ if ( !$isRegistered ) {
         }
 
     } else {
-        $t->data['todo'] = 'selectauthpref';
 
         // We are setting the preference of user for the first time
         if(isset($_POST["authpref"])) {
             $t->data['todo'] = 'selectanswers';
-
             switch ($_POST['authpref']) {
 
                 case "qanda":
                     $qaLogin->set2Factor($uid, 'question');
                     $t->data['todo'] = 'selectanswers';
-                    //SimpleSAML_Utilities::redirect(SimpleSAML_Utilities::selfURL(), array('AuthState' => $authStateId));
                     break;
                 case "pin":
-                    $qaLogin->set2Factor($uid, 'sms');
-                    $t->data['todo'] = 'selectanswers';
-                    //SimpleSAML_Utilities::redirect(SimpleSAML_Utilities::selfURL(), array('AuthState' => $authStateId));
+                    $qaLogin->sendMailCode($uid);
+                    $t->data['todo'] = 'loginCode';
                     break;
                 default:
                     break;
@@ -108,6 +105,7 @@ if ( !$isRegistered ) {
 
         }
 
+        //$t->data['todo'] = 'selectauthpref';
         //$t->data['todo'] = 'selectanswers';
     }
 }
@@ -120,22 +118,16 @@ if ( !$isRegistered ) {
 if ( $isRegistered ){
 
 
-// do this if it's questions
 
-
-    // get a random question
-    $random_question = $qaLogin->getRandomQuestion($uid);
-    $t->data['random_question'] = array("question_text" => $random_question["question_text"],
-                                        "question_id" => $random_question["question_id"]);
-
-// do this if it's sms code
-    // check age of code - regen if old or empty
-    sprintf('%06d', mt_rand(0, 999999));
-
-    $t->data['useSMS'] = true;
     $t->data['autofocus'] = 'answer';
 
     if ($prefs['challenge_type'] == 'question') {
+        // do this if it's questions
+        // get a random question
+        $random_question = $qaLogin->getRandomQuestion($uid);
+        $t->data['random_question'] = array("question_text" => $random_question["question_text"],
+                                            "question_id" => $random_question["question_id"]);
+
         $t->data['todo'] = 'loginANSWER';
     } else {
         $t->data['todo'] = 'loginCode';

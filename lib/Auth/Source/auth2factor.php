@@ -14,6 +14,7 @@
  *        'db.password' => 'password',
  *        'mainAuthSource' => 'ldap',
  *        'uidField' => 'uid',
+ *        'mailField' => 'email'
  *        'post_logout_url' => 'http://google.com', // URL to redirect to on logout. Optional
  *        'minAnswerLength' => 10, // Minimum answer length. Defaults to 0
  *        'initSecretQuestions' => array('Question 1', 'Question 2', 'Question 3') // Optional - Initialise the db with secret questions
@@ -301,11 +302,11 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
         return $result;
     }
 
-    public function sendMailCode($uid) {
+    public function sendMailCode($uid, $email) {
         $code = $this->generateRandomString($this->singleUseCodeLength);
         $this->set2Factor($uid, self::FACTOR_MAIL, $code);
         SimpleSAML_Logger::debug('auth2factor: sending '.self::FACTOR_MAIL.' code: '. $code);
-        //TODO: send mail code
+        mail($email, 'Code = '.$code, '');
     }
 
     public function hasMailCode($uid) {

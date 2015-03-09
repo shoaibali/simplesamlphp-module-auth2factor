@@ -44,6 +44,7 @@ $state['Attributes'] = $attributes;
 
 
 $uid = $attributes[ $as['uidField'] ][0];
+$email = $attributes[ $as['emailField'] ][0];
 $state['UserID'] = $uid;
 $isRegistered = $qaLogin->isRegistered($uid);
 
@@ -98,7 +99,7 @@ if ( !$isRegistered ) {
                     break;
                 case "pin":
                     $qaLogin->set2Factor($uid, 'mail');
-                    $qaLogin->sendMailCode($uid);
+                    $qaLogin->sendMailCode($uid, $email);
                     $t->data['todo'] = 'loginCode';
                     break;
                 default:
@@ -137,7 +138,7 @@ if ( $isRegistered ){
     } else {
         $t->data['todo'] = 'loginCode';
         if(!$qaLogin->hasMailCode($uid)) {
-            $qaLogin->sendMailCode($uid);
+            $qaLogin->sendMailCode($uid, $email);
         }
     }
 
@@ -202,7 +203,7 @@ if ( $isRegistered ){
             case $t->t('{auth2factor:login:switchtomail}'):
                 //error_log('switchtosms');
                 $qaLogin->set2Factor($uid, 'mail');
-                $qaLogin->sendMailCode($uid);
+                $qaLogin->sendMailCode($uid, $email);
                 $t->data['todo'] = 'loginCode';
                 $t->data['useSMS'] = true;
                 break;
@@ -230,7 +231,7 @@ if (!$t->data['todo'] == 'selectauthpref') {
         $t->data['useSMS'] = true;
         $t->data['todo'] = 'loginCode';
         if(!$qaLogin->hasMailCode($uid)) {
-            $qaLogin->sendMailCode($uid);
+            $qaLogin->sendMailCode($uid, $email);
         }
     }
 }

@@ -266,7 +266,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
             } else {
 
                 // Can just return $this->hasMailCode($uid);
-                if ($this->hasMailCode($uid)) {
+                if ($this->hasRegisteredForMail($uid)) {
                   return TRUE;
                   SimpleSAML_Logger::debug('User '.$uid.' is registered for PIN code');
                 }
@@ -321,6 +321,21 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
         $this->set2Factor($uid, self::FACTOR_MAIL, $code);
         SimpleSAML_Logger::debug('auth2factor: sending '.self::FACTOR_MAIL.' code: '. $code);
         mail($email, 'Code = '.$code, '');
+    }
+
+    public function hasRegisteredForMail($uid) {
+      $q = $this->dbh->prepare("SELECT uid, challenge_type FROM ssp_user_2factor WHERE uid=:uid;");
+      $result = $q->execute([':uid' => $uid]);
+      $rows = $q->fetchAll();
+
+      if(count($rows) > 0) {
+        if($rows[0]["challenge_type"] == self::FACTOR_QUESTION) {
+          return false;
+        }
+        return true;
+      }
+
+      return false;
     }
 
     public function hasMailCode($uid) {

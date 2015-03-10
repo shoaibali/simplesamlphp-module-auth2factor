@@ -179,7 +179,6 @@ if ( $isRegistered ){
             // Switch to Questions button pushed
             case $t->t('{auth2factor:login:switchtoq}'):
                 //error_log('switchtoq');
-
                 if(count($qaLogin->getAnswersFromUID($uid))) {
                     // get a random question
                     $random_question = $qaLogin->getRandomQuestion($uid);

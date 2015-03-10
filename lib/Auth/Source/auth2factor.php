@@ -177,7 +177,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
 
         $id = SimpleSAML_Auth_State::saveState($state, self::STEPID);
 
-        $url = SimpleSAML_Module::getModuleURL('authqstep/logout.php');
+        $url = SimpleSAML_Module::getModuleURL('auth2factor/logout.php');
         SimpleSAML_Utilities::redirect($url, array('AuthState' => $id));
   }
 

@@ -66,6 +66,9 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
 
     const MAXCODEAGE = 300; //60 * 5
 
+    const SALT_SPACE = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const NO_CONFUSION_SPACE = '23456789abcdefghikmnpqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
     private $db_dsn;
     private $db_username;
     private $db_password;
@@ -179,13 +182,12 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
   }
 
   //Generate a random string of a given length. Used to produce the per-question salt
-  private function generateRandomString($length=15) {
-    $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-        $randomString = '';
-    for ($i = 0; $i < $length; $i++) {
-            $randomString .= $characters[rand(0, strlen($characters) - 1)];
-        }
-    return $randomString;
+    private function generateRandomString($length=15, $characters=self::SALT_SPACE) {
+      $randomString = '';
+      for ($i = 0; $i < $length; $i++) {
+          $randomString .= $characters[rand(0, strlen($characters) - 1)];
+      }
+      return $randomString;
   }
 
   private function createTables()
@@ -315,7 +317,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
     }
 
     public function sendMailCode($uid, $email) {
-        $code = $this->generateRandomString($this->singleUseCodeLength);
+        $code = $this->generateRandomString($this->singleUseCodeLength, self::NO_CONFUSION_SPACE);
         $this->set2Factor($uid, self::FACTOR_MAIL, $code);
         SimpleSAML_Logger::debug('auth2factor: sending '.self::FACTOR_MAIL.' code: '. $code);
         mail($email, 'Code = '.$code, '');
@@ -454,7 +456,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
             $q = $this->dbh->prepare("SELECT uid, last_code, last_code_stamp FROM ssp_user_2factor WHERE uid=:uid ORDER BY last_code_stamp DESC;");
             $result = $q->execute([':uid' => $uid]);
             $rows = $q->fetchAll();
-            if ($rows[0]['last_code'] === $answer) {
+            if ($rows[0]['last_code'] === trim($answer)) {
                 SimpleSAML_Logger::debug('User '.$uid.' passed good code');
                 $q = $this->dbh->prepare("UPDATE ssp_user_2factor SET last_code=NULL,last_code_stamp=NULL WHERE uid=:uid;");
                 $result = $q->execute([':uid' => $uid]);

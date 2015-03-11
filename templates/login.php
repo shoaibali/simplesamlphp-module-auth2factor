@@ -44,7 +44,7 @@ $this->data['header'] = $this->t('{auth2factor:login:authentication}');
         <br/>
         <ul>
             <li><input type="radio" name="authpref" value="qanda" checked="checked"> Secret question &amp; answers?</li>
-            <li> <input type="radio" name="authpref" value="pin">OTP (One Time Password) sent via Email?</li>
+            <li><input type="radio" name="authpref" value="pin">OTP (One Time Password) sent via Email?</li>
         </ul>
     <p>For future login attempts, above selected preference will be applied. Option to switch different second step authentication will be available</p>
 

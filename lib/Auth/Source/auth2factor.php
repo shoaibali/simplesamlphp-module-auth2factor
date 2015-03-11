@@ -177,7 +177,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
 
         $id = SimpleSAML_Auth_State::saveState($state, self::STEPID);
 
-        $url = SimpleSAML_Module::getModuleURL('authqstep/logout.php');
+        $url = SimpleSAML_Module::getModuleURL('auth2factor/logout.php');
         SimpleSAML_Utilities::redirect($url, array('AuthState' => $id));
   }
 
@@ -430,9 +430,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
                                        ':answer_hash' => $answer_hash,
                                        ':question' => $question,
                                        ':uid' => $uid]);
-
-                var_dump($result);
-                SimpleSAML_Logger::debug('authqstep: ' . $uid . ' registered his answer: '. $answer . ' for question_id:' . $question);
+                SimpleSAML_Logger::debug('auth2factor: ' . $uid . ' registered his answer: '. $answer . ' for question_id:' . $question);
             } else {
                 $result = FALSE;
             }

@@ -17,8 +17,17 @@
  *        'mailField' => 'email',
  *        'post_logout_url' => 'http://google.com', // URL to redirect to on logout. Optional
  *        'minAnswerLength' => 10, // Minimum answer length. Defaults to 0
- *        'initSecretQuestions' => array('Question 1', 'Question 2', 'Question 3') // Optional - Initialise the db with secret questions
- *        'maxCodeAge' => 60 * 5 // Maximum age for a one time code. Defaults to 5 minutes
+ *        'initSecretQuestions' => array('Question 1', 'Question 2', 'Question 3'), // Optional - Initialise the db with secret questions
+ *        'maxCodeAge' => 60 * 5, // Maximum age for a one time code. Defaults to 5 minutes
+ *        'mail' => array('host' => 'ssl://smtp.gmail.com',
+ *                        'port' => '465', 
+ *                        'from' => 'cloudfiles.notifications@mydomain.com',
+ *                        'subject' => '**TEST**', // This will be added before Code = XYZ
+ *                        'body' => '', // This will be added before Code = XYZ
+ *                        'username' => 'cloudfiles.notifications@mydomain.com',
+ *                        'password' => 'CHANGEME',
+ *                        'debug' => false,
+ *                       )
  *        ),
  *
  * @package simpleSAMLphp
@@ -78,6 +87,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
     private $minAnswerLength;
     private $singleUseCodeLength;
     private $maxCodeAge;
+    private $mail;
 
     public $tfa_authencontextclassref;
 
@@ -135,20 +145,25 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
       die('Auth2factor: secretsalt not set in config.php! You should set this immediately!');
     }
 
-        $this->tfa_authencontextclassref = self::TFAAUTHNCONTEXTCLASSREF;
+    $this->tfa_authencontextclassref = self::TFAAUTHNCONTEXTCLASSREF;
 
-        try {
-            $this->dbh = new PDO($this->db_dsn, $this->db_username, $this->db_password);
-        } catch (PDOException $e) {
-            echo 'Connection failed: ' . $e->getMessage();
-            exit();
-        }
+    try {
+        $this->dbh = new PDO($this->db_dsn, $this->db_username, $this->db_password);
+    } catch (PDOException $e) {
+        echo 'Connection failed: ' . $e->getMessage();
+        exit();
+    }
 
-        $this->createTables();
+    $this->createTables();
 
-        if(array_key_exists('initSecretQuestions', $config)){
-            $this->initQuestions($config['initSecretQuestions']);
-        }
+    if(array_key_exists('initSecretQuestions', $config)){
+        $this->initQuestions($config['initSecretQuestions']);
+    }
+
+    if(array_key_exists('mail', $config)){
+        $this->mail =  $config['mail'];
+    }
+
   }
 
   public function getLogoutURL() {
@@ -264,8 +279,6 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
                 SimpleSAML_Logger::debug('User '.$uid.' is registered, '.$registered.' answers');
                 return TRUE;
             } else {
-
-                // Can just return $this->hasMailCode($uid);
                 if ($this->hasRegisteredForMail($uid)) {
                   return TRUE;
                   SimpleSAML_Logger::debug('User '.$uid.' is registered for PIN code');
@@ -319,8 +332,37 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
     public function sendMailCode($uid, $email) {
         $code = $this->generateRandomString($this->singleUseCodeLength, self::NO_CONFUSION_SPACE);
         $this->set2Factor($uid, self::FACTOR_MAIL, $code);
+
+
+        // sudo pear install mail
+        // sudo pear install Net_SMTP
+        require_once('Mail.php');
+
+        if(isset($this->mail)) {
+          $params = array("host" => $this->mail["host"],
+                          "port" => $this->mail["port"],
+                          "auth" => true,
+                          "username" => $this->mail["username"],
+                          "password" => $this->mail["password"],
+                          "debug" => $this->mail["debug"],
+                          );
+
+          $headers = array("To" => $email,
+                            "From" => $this->mail["from"],
+                            "Subject" => $this->mail["subject"] . " Code = " . $code,
+                            );
+
+          $mail =& Mail::factory('smtp', $params); // Print the parameters you are using to the page
+          $mail->send($email, $headers, $this->mail["body"]);
+
+
+        } else {
+          // fall back to normal mail function
+          mail($email, 'Code = '.$code, '');
+        }
+
         SimpleSAML_Logger::debug('auth2factor: sending '.self::FACTOR_MAIL.' code: '. $code);
-        mail($email, 'Code = '.$code, '');
+
     }
 
     public function hasRegisteredForMail($uid) {

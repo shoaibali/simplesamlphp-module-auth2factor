@@ -122,7 +122,7 @@ if ( $isRegistered ){
     // do this if it's questions
 
     $t->data['autofocus'] = 'answer';
-    
+
     //var_dump(count($qaLogin->getAnswersFromUID($uid))); die();
 
     if ($prefs['challenge_type'] == 'question' && (count($qaLogin->getAnswersFromUID($uid)))) {

@@ -20,7 +20,7 @@
  *        'initSecretQuestions' => array('Question 1', 'Question 2', 'Question 3'), // Optional - Initialise the db with secret questions
  *        'maxCodeAge' => 60 * 5, // Maximum age for a one time code. Defaults to 5 minutes
  *        'mail' => array('host' => 'ssl://smtp.gmail.com',
- *                        'port' => '465', 
+ *                        'port' => '465',
  *                        'from' => 'cloudfiles.notifications@mydomain.com',
  *                        'subject' => '**TEST**', // This will be added before Code = XYZ
  *                        'body' => '', // This will be added before Code = XYZ
@@ -370,10 +370,16 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
       $result = $q->execute([':uid' => $uid]);
       $rows = $q->fetchAll();
 
+
       if(count($rows) > 0) {
         if($rows[0]["challenge_type"] == self::FACTOR_QUESTION) {
           return false;
         }
+        // if the user has no questions either, then also return true i.e not registered
+        if(count($this->getAnswersFromUID($uid)) == 0){
+          return true;
+        }
+
         return true;
       }
 

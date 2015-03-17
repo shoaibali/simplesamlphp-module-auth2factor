@@ -28,13 +28,13 @@
 	},
 	"entermailcode": {
 		"en": "Please enter the 6 digit code received via email message"
-	},	
+	},
 	"2step_title": {
 		"en": "Set up two-step authentication"
 	},
 	"authentication": {
 		"en": "Authentication"
-	},	
+	},
 	"qrcode": {
 		"en": "Read the QR code with Google Authenticator app, and type the verification code below"
 	},

@@ -26,3 +26,11 @@ Questions and answers database tables are automatically created if they don't ex
  In order to complete the login user must provide a correct answer to its question.
 
  All answers are normalized to lowercase to accomodate future hashing capability.
+
+
+ Dependencies
+
+ sudo apt-get install php-pear || yum install php-pear
+ pear channel-update pear.php.net
+ sudo pear install --alldeps  mail Net_SMTP
+ sudo servie apache2 restart

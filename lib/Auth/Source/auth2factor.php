@@ -17,6 +17,7 @@
  *        'mailField' => 'email',
  *        'post_logout_url' => 'http://google.com', // URL to redirect to on logout. Optional
  *        'minAnswerLength' => 10, // Minimum answer length. Defaults to 0
+ *        'singleUseCodeLength' => 10, // Minimum answer length. Defaults to 8
  *        'initSecretQuestions' => array('Question 1', 'Question 2', 'Question 3'), // Optional - Initialise the db with secret questions
  *        'maxCodeAge' => 60 * 5, // Maximum age for a one time code. Defaults to 5 minutes
  *        'mail' => array('host' => 'ssl://smtp.gmail.com',
@@ -352,8 +353,10 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
                             "Subject" => $this->mail["subject"] . " Code = " . $code,
                             );
 
-          $mail =& Mail::factory('smtp', $params); // Print the parameters you are using to the page
-          $mail->send($email, $headers, $this->mail["body"]);
+          $mail = new Mail();
+
+          $mail_factory = $mail->factory('smtp', $params); // Print the parameters you are using to the page
+          $mail_factory->send($email, $headers, $this->mail["body"]);
 
 
         } else {
@@ -530,6 +533,18 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
             SimpleSAML_Logger::debug('User '.$uid.' does not have a code');
             return false;
         }
+    }
+
+    public function isInvalidCode($uid, $answer) {
+
+      $q = $this->dbh->prepare("SELECT uid, last_code FROM ssp_user_2factor WHERE uid=:uid ORDER BY last_code_stamp DESC;");
+      $result = $q->execute([':uid' => $uid]);
+      $rows = $q->fetchAll();
+
+      if ($rows[0]['last_code'] !== trim($answer)) {
+          return true;
+      }
+      return false;
     }
 
 }

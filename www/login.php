@@ -122,9 +122,6 @@ if ( $isRegistered ){
     // do this if it's questions
 
     $t->data['autofocus'] = 'answer';
-
-    //var_dump(count($qaLogin->getAnswersFromUID($uid))); die();
-
     if ($prefs['challenge_type'] == 'question' && (count($qaLogin->getAnswersFromUID($uid)))) {
 
         $t->data['todo'] = 'loginANSWER';
@@ -163,15 +160,19 @@ if ( $isRegistered ){
                         }
                     }
                     else {
+                       $t->data['todo'] = 'loginCode';
+
+                        // TODO don't need to verify an invalid code 
                         $loggedIn = $qaLogin->verifyChallenge($uid, $_POST['answer']);
+                          
                         if ($loggedIn){
-                            $state['saml:AuthnContextClassRef'] = $qaLogin->tfa_authencontextclassref;
-                            SimpleSAML_Auth_Source::completeAuth($state);
+                          $state['saml:AuthnContextClassRef'] = $qaLogin->tfa_authencontextclassref;
+                          SimpleSAML_Auth_Source::completeAuth($state);
                         } else {
-                            $errorCode = 'WRONGANSWER';
-                            $t->data['todo'] = 'loginCode';
+                          $errorCode = 'CODEXPIRED';
+                           
                         }
-                    }
+                   }
                 }
 
                 break;

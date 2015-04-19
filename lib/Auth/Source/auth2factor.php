@@ -273,7 +273,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
   {
         if (strlen($uid) > 0) {
             $q = $this->dbh->prepare("SELECT COUNT(*) as registered_count FROM ssp_answers WHERE uid=:uid");
-            $result = $q->execute([':uid' => $uid]);
+            $result = $q->execute(array(':uid' => $uid));
             $row = $q->fetch();
             $registered =  $row["registered_count"];
             if ($registered >= 3){
@@ -300,7 +300,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
      */
     public function get2FactorFromUID($uid){
         $q = $this->dbh->prepare("SELECT * FROM ssp_user_2factor WHERE uid=:uid");
-        $result = $q->execute([':uid' => $uid]);
+        $result = $q->execute(array(':uid' => $uid));
         $rows = $q->fetchAll();
         if(empty($rows)){
             SimpleSAML_Logger::debug('auth2factor: use has no default prefs');
@@ -324,7 +324,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
                                           :code,
                                           NOW()) ON DUPLICATE KEY UPDATE challenge_type=:type, last_code=:code, last_code_stamp=NOW();");
 
-        $result = $q->execute([':uid' => $uid, ':type' => $type, ':code' => $code]);
+        $result = $q->execute(array(':uid' => $uid, ':type' => $type, ':code' => $code));
         SimpleSAML_Logger::debug('auth2factor: ' . $uid . ' set preferences: '. $type . ' code:' . $code);
 
         return $result;
@@ -370,7 +370,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
 
     public function hasRegisteredForMail($uid) {
       $q = $this->dbh->prepare("SELECT uid, challenge_type FROM ssp_user_2factor WHERE uid=:uid;");
-      $result = $q->execute([':uid' => $uid]);
+      $result = $q->execute(array(':uid' => $uid));
       $rows = $q->fetchAll();
 
 
@@ -391,7 +391,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
 
     public function hasMailCode($uid) {
         $q = $this->dbh->prepare("SELECT uid, last_code, last_code_stamp FROM ssp_user_2factor WHERE uid=:uid ORDER BY last_code_stamp DESC;");
-        $result = $q->execute([':uid' => $uid]);
+        $result = $q->execute(array(':uid' => $uid));
         $rows = $q->fetchAll();
         if (count($rows) == 0) {
             SimpleSAML_Logger::debug('User '.$uid.' has no challenge');
@@ -434,14 +434,14 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
     public function getAnswersFromUID($uid)
     {
         $q = $this->dbh->prepare("SELECT * FROM ssp_answers WHERE uid=:uid");
-        $result = $q->execute([':uid' => $uid]);
+        $result = $q->execute(array(':uid' => $uid));
         $rows = $q->fetchAll();
         return $rows;
     }
 
     public function getRandomQuestion($uid){
         $q = $this->dbh->prepare("SELECT ssp_answers.question_id, ssp_questions.question_text FROM ssp_answers, ssp_questions WHERE ssp_answers.uid=:uid AND ssp_answers.question_id = ssp_questions.question_id;");
-        $result = $q->execute([':uid' => $uid]);
+        $result = $q->execute(array(':uid' => $uid));
 
         $rows = $q->fetchAll();
         // array_rand is quicker then SQL ORDER BY RAND()
@@ -477,10 +477,10 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
                 $answer_hash = $this->calculateAnswerHash($answer, $this->site_salt, $answer_salt);
                 $q = $this->dbh->prepare("INSERT INTO ssp_answers (answer_salt, answer_hash, question_id, uid) VALUES (:answer_salt, :answer_hash, :question, :uid)");
 
-                $result = $q->execute([':answer_salt' => $answer_salt,
+                $result = $q->execute(array(':answer_salt' => $answer_salt,
                                        ':answer_hash' => $answer_hash,
                                        ':question' => $question,
-                                       ':uid' => $uid]);
+                                       ':uid' => $uid));
                 SimpleSAML_Logger::debug('auth2factor: ' . $uid . ' registered his answer: '. $answer . ' for question_id:' . $question);
             } else {
                 $result = FALSE;
@@ -518,12 +518,12 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
     public function verifyChallenge($uid, $answer) {
         if ($this->hasMailCode($uid)) {
             $q = $this->dbh->prepare("SELECT uid, last_code, last_code_stamp FROM ssp_user_2factor WHERE uid=:uid ORDER BY last_code_stamp DESC;");
-            $result = $q->execute([':uid' => $uid]);
+            $result = $q->execute(array(':uid' => $uid));
             $rows = $q->fetchAll();
             if ($rows[0]['last_code'] === trim($answer)) {
                 SimpleSAML_Logger::debug('User '.$uid.' passed good code');
                 $q = $this->dbh->prepare("UPDATE ssp_user_2factor SET last_code=NULL,last_code_stamp=NULL WHERE uid=:uid;");
-                $result = $q->execute([':uid' => $uid]);
+                $result = $q->execute(array(':uid' => $uid));
                 return true;
             } else {
                 SimpleSAML_Logger::debug('User '.$uid.' passed bad code. "'.$rows[0]['last_code'].'" !== "'.$answer.'"');
@@ -538,7 +538,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
     public function isInvalidCode($uid, $answer) {
 
       $q = $this->dbh->prepare("SELECT uid, last_code FROM ssp_user_2factor WHERE uid=:uid ORDER BY last_code_stamp DESC;");
-      $result = $q->execute([':uid' => $uid]);
+      $result = $q->execute(array(':uid' => $uid));
       $rows = $q->fetchAll();
 
       if ($rows[0]['last_code'] !== trim($answer)) {

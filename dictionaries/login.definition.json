@@ -8,12 +8,33 @@
 	"next": {
 		"en": "Next"
 	},
+	"switchtosms": {
+		"en": "Switch to SMS"
+	},
+    	"switchtomail": {
+		"en": "Switch to Email Code"
+	},
+	"switchtoq": {
+		"en": "Switch to Questions"
+	},
+	"smscode": {
+		"en": "SMS Code"
+	},
+	"entersmscode": {
+		"en": "Please enter the 6 digit code received via SMS TXT message"
+	},
+	"mailcode": {
+		"en": "Mail Code"
+	},
+	"entermailcode": {
+		"en": "Please enter the 6 digit code received via email message"
+	},
 	"2step_title": {
 		"en": "Set up two-step authentication"
 	},
 	"authentication": {
 		"en": "Authentication"
-	},	
+	},
 	"qrcode": {
 		"en": "Read the QR code with Google Authenticator app, and type the verification code below"
 	},
@@ -22,5 +43,8 @@
 	},
 	"2step_login": {
 		"en": "Complete login with answer to secret question."
-	}	
+	},
+    "resend": {
+	"en": "Resend code"
+    }
 }

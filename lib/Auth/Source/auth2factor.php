@@ -558,6 +558,30 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
       return false;
     }
 
+
+    /**
+     * Determines if the browser provided a valid SSL client certificate
+     *
+     * @return boolean True if the client cert is there and is valid
+     */
+    function hasValidCert()
+    {
+        if (!isset($_SERVER['SSL_CLIENT_M_SERIAL'])
+            || !isset($_SERVER['SSL_CLIENT_V_END'])
+            || !isset($_SERVER['SSL_CLIENT_VERIFY'])
+            || $_SERVER['SSL_CLIENT_VERIFY'] !== 'SUCCESS'
+            || !isset($_SERVER['SSL_CLIENT_I_DN'])
+        ) {
+            return false;
+        }
+
+        if ($_SERVER['SSL_CLIENT_V_REMAIN'] <= 0) {
+            return false;
+        }
+
+        return true;
+    }
+
 }
 
 ?>

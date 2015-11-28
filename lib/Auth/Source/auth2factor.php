@@ -80,6 +80,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
     const NO_CONFUSION_SPACE = '23456789abcdefghikmnpqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
     private $db_dsn;
+    private $db_name;
     private $db_username;
     private $db_password;
     private $site_salt;
@@ -108,6 +109,9 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
 
     if (array_key_exists('db.dsn', $config)) {
       $this->db_dsn = $config['db.dsn'];
+    }
+    if (array_key_exists('db.name', $config)) {
+      $this->db_name = $config['db.name'];
     }
     if (array_key_exists('db.username', $config)) {
       $this->db_username = $config['db.username'];
@@ -148,20 +152,19 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
 
     $this->tfa_authencontextclassref = self::TFAAUTHNCONTEXTCLASSREF;
 
-    try {
-        $this->dbh = new PDO($this->db_dsn, $this->db_username, $this->db_password);
-    } catch (PDOException $e) {
-        echo 'Connection failed: ' . $e->getMessage();
-        exit();
+    $this->dbh = new PDO($this->db_dsn, $this->db_username, $this->db_password);
+    $this->dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+    if ($this->createDatabase($this->db_name)) {
+      // doing all these make sense if we have a database!
+      $this->createTables();
+
+      if (array_key_exists('initSecretQuestions', $config)){
+          $this->initQuestions($config['initSecretQuestions']);
+      }
     }
 
-    $this->createTables();
-
-    if(array_key_exists('initSecretQuestions', $config)){
-        $this->initQuestions($config['initSecretQuestions']);
-    }
-
-    if(array_key_exists('mail', $config)){
+    if (array_key_exists('mail', $config)){
         $this->mail =  $config['mail'];
     }
 
@@ -243,23 +246,31 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
 
     private function initQuestions($questions){
         // Not sure if this is the correct way to use assert
-        if(assert('is_array($questions)')){
-            // make sure table is empty
-            if($this->emptyTable("ssp_questions")) {
-                foreach($questions as $q){
-                    $q = "INSERT INTO ssp_questions(question_text) VALUES ('".addslashes($q)."');";
-                    $this->dbh->query($q);
-                }
-            }
+        if (assert('is_array($questions)')){
+          // make sure table is empty
+          if ($this->emptyTable("ssp_questions")) {
+              foreach($questions as $q){
+                  $q = "INSERT INTO ssp_questions(question_text) VALUES ('".addslashes($q)."');";
+                  $this->dbh->query($q);
+              }
+          }
         }
     }
 
-    private function emptyTable($table){
+    private function emptyTable($table)
+    {
         $q = "SELECT COUNT(*) as records_count FROM $table";
         $result = $this->dbh->query($q);
         $row = $result->fetch();
         $records_count =  $row["records_count"];
         return ($records_count == 0)? TRUE : FALSE;
+    }
+
+    private function createDatabase($database)
+    {
+        $q = "CREATE DATABASE IF NOT EXISTS $database";
+
+        return (bool) ($this->dbh->query($q))? $this->dbh->query("USE $database") : false;
     }
 
     /**
@@ -302,7 +313,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
         $q = $this->dbh->prepare("SELECT * FROM ssp_user_2factor WHERE uid=:uid");
         $result = $q->execute([':uid' => $uid]);
         $rows = $q->fetchAll();
-        if(empty($rows)){
+        if (empty($rows)){
             SimpleSAML_Logger::debug('auth2factor: use has no default prefs');
             return array('uid' => $uid, 'challenge_type' => self::FACTOR_QUESTION);
         }
@@ -339,7 +350,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
         // sudo pear install Net_SMTP
         require_once('Mail.php');
 
-        if(isset($this->mail)) {
+        if (isset($this->mail)) {
           $params = array("host" => $this->mail["host"],
                           "port" => $this->mail["port"],
                           "auth" => true,
@@ -374,12 +385,12 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
       $rows = $q->fetchAll();
 
 
-      if(count($rows) > 0) {
-        if($rows[0]["challenge_type"] == self::FACTOR_QUESTION) {
+      if (count($rows) > 0) {
+        if ($rows[0]["challenge_type"] == self::FACTOR_QUESTION) {
           return false;
         }
         // if the user has no questions either, then also return true i.e not registered
-        if(count($this->getAnswersFromUID($uid)) == 0){
+        if (count($this->getAnswersFromUID($uid)) == 0){
           return true;
         }
 
@@ -425,7 +436,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
         $result = $this->dbh->query($q);
         $row = $result->fetchAll();
 
-        if(empty($row)){
+        if (empty($row)){
             return false;
         }
         return $row;
@@ -506,7 +517,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
           if ($question_id == $a["question_id"]) {
                 $answer_salt = $a['answer_salt'];
                 $submitted_hash = $this->calculateAnswerHash($answer, $this->site_salt, $answer_salt);
-                if($submitted_hash == $a["answer_hash"]) {
+                if ($submitted_hash == $a["answer_hash"]) {
                     $match = TRUE;
                     break;
                 }

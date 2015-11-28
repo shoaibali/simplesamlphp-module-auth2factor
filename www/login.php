@@ -44,7 +44,7 @@ $state['Attributes'] = $attributes;
 
 
 $uid = $attributes[ $as['uidField'] ][0];
-$email = $attributes[ $as['emailField'] ][0];
+$email = $attributes[ $as['emailField'] ][0]; // todo fall back on uid if not set
 $state['UserID'] = $uid;
 $isRegistered = $qaLogin->isRegistered($uid);
 
@@ -162,15 +162,15 @@ if ( $isRegistered ){
                     else {
                        $t->data['todo'] = 'loginCode';
 
-                        // TODO don't need to verify an invalid code 
+                        // TODO don't need to verify an invalid code
                         $loggedIn = $qaLogin->verifyChallenge($uid, $_POST['answer']);
-                          
+
                         if ($loggedIn){
                           $state['saml:AuthnContextClassRef'] = $qaLogin->tfa_authencontextclassref;
                           SimpleSAML_Auth_Source::completeAuth($state);
                         } else {
                           $errorCode = 'CODEXPIRED';
-                           
+
                         }
                    }
                 }

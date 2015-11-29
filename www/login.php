@@ -47,7 +47,7 @@ $uid = $attributes[ $as['uidField'] ][0];
 $email = $attributes[ $as['emailField'] ][0]; // todo fall back on uid if not set
 $state['UserID'] = $uid;
 $isRegistered = $qaLogin->isRegistered($uid);
-$isSSLVerified = $qaLogin->hasValidCert();
+$isSSLVerified = $qaLogin->hasValidCert($uid);
 
 $prefs = $qaLogin->get2FactorFromUID($uid);
 $t->data['useSMS'] = true;

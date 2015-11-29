@@ -44,20 +44,27 @@ $state['Attributes'] = $attributes;
 
 
 $uid = $attributes[ $as['uidField'] ][0];
-$email = $attributes[ $as['emailField'] ][0];
+$email = $attributes[ $as['emailField'] ][0]; // todo fall back on uid if not set
 $state['UserID'] = $uid;
 $isRegistered = $qaLogin->isRegistered($uid);
+$isSSLVerified = $qaLogin->hasValidCert();
 
 $prefs = $qaLogin->get2FactorFromUID($uid);
 $t->data['useSMS'] = true;
 
 
+// if we are using SSL ceritificate to verify then we do not need 2-factor
+
+if ($isSSLVerified) {
+    $state['saml:AuthnContextClassRef'] = $qaLogin->tfa_authencontextclassref;
+    SimpleSAML_Auth_Source::completeAuth($state);
+}
+
 /******************************
  *       NEW USERS
  ******************************/
 
-if ( !$isRegistered ) {
-
+if (!$isRegistered && !$isSSLVerified) {
 
     //If the user has not set his preference of 2 factor authentication, redirect to settings page
     if ( isset($_POST['answers']) && isset($_POST['questions']) ){
@@ -117,8 +124,7 @@ if ( !$isRegistered ) {
  *          EXISTING USERS
  ******************************/
 
-if ( $isRegistered ){
-
+if ($isRegistered && !$isSSLVerified) {
     // do this if it's questions
 
     $t->data['autofocus'] = 'answer';
@@ -162,15 +168,15 @@ if ( $isRegistered ){
                     else {
                        $t->data['todo'] = 'loginCode';
 
-                        // TODO don't need to verify an invalid code 
+                        // TODO don't need to verify an invalid code
                         $loggedIn = $qaLogin->verifyChallenge($uid, $_POST['answer']);
-                          
+
                         if ($loggedIn){
                           $state['saml:AuthnContextClassRef'] = $qaLogin->tfa_authencontextclassref;
                           SimpleSAML_Auth_Source::completeAuth($state);
                         } else {
                           $errorCode = 'CODEXPIRED';
-                           
+
                         }
                    }
                 }

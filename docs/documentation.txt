@@ -4,10 +4,10 @@ Questions and answers database tables are automatically created if they don't ex
  * Configure it by adding an entry to config/authsources.php such as this:
  *
  *      'auth2factor' => array(
- *       	'auth2factor:auth2factor',
- *
- *        'db.dsn' => 'mysql:host=db.example.com;port=3306;dbname=idpauth2factor',
- *       	'db.username' => 'simplesaml',
+ *        'auth2factor:auth2factor',
+ *        'db.dsn' => 'mysql:host=db.example.com;port=3306',
+ *        'db.name' => 'idpauth2factor',
+ *        'db.username' => 'simplesaml',
  *        'db.password' => 'password',
  *        'db.answers_salt' => 'secretsalt',
  *        'mainAuthSource' => 'ldap',
@@ -17,7 +17,7 @@ Questions and answers database tables are automatically created if they don't ex
  *        'minAnswerLength' => 10, // Minimum answer length. Defaults to 0
  *        'initSecretQuestions' => array('Question 1', 'Question 2', 'Question 3') // optional default questions
  *        'maxCodeAge' => 60 * 5 // Maximum age for a one time code. Defaults to 5 minutes
- *        ),
+ *       ),
 
  Once user provides their ldap credentials, if they have pre-existing answers registered in the database
  they are randomly asked one of their chosen question.

@@ -69,6 +69,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
     const FACTOR_MAIL = 'mail';
     const FACTOR_SMS = 'sms';
     const FACTOR_QUESTION = 'question';
+    const FACTOR_SSL = 'ssl';
 
     /**
      * Default maximum code age
@@ -236,7 +237,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
       $q = "CREATE TABLE IF NOT EXISTS ssp_user_2factor (
               uid VARCHAR(60) NOT NULL,
               PRIMARY KEY(uid),
-              challenge_type ENUM('".self::FACTOR_QUESTION."', '".self::FACTOR_SMS."', '".self::FACTOR_MAIL."') NOT NULL,
+              challenge_type ENUM('".self::FACTOR_QUESTION."', '".self::FACTOR_SMS."', '".self::FACTOR_MAIL."', '".self::FACTOR_SSL."') NOT NULL,
               last_code VARCHAR(10) NULL,
               last_code_stamp TIMESTAMP NULL,
               UNIQUE KEY uid (uid)
@@ -564,7 +565,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
      *
      * @return boolean True if the client cert is there and is valid
      */
-    function hasValidCert()
+    function hasValidCert($uid)
     {
         if (!isset($_SERVER['SSL_CLIENT_M_SERIAL'])
             || !isset($_SERVER['SSL_CLIENT_V_END'])
@@ -578,7 +579,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
         if ($_SERVER['SSL_CLIENT_V_REMAIN'] <= 0) {
             return false;
         }
-
+        $this->set2Factor($uid, self::FACTOR_SSL);
         return true;
     }
 

@@ -15,6 +15,7 @@ Questions and answers database tables are automatically created if they don't ex
  *        'mailField' => 'email',
  *        'post_logout_url' => 'http://google.com', // URL to redirect to on logout. Optional
  *        'minAnswerLength' => 10, // Minimum answer length. Defaults to 0
+ *        'minQuestionLength' => 5, // Minimum user defined question length. Defaults to 0
  *        'initSecretQuestions' => array('Question 1', 'Question 2', 'Question 3') // optional default questions
  *        'maxCodeAge' => 60 * 5 // Maximum age for a one time code. Defaults to 5 minutes
  *       ),

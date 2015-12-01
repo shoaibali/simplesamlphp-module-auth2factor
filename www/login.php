@@ -71,16 +71,30 @@ if (!$isRegistered && !$isSSLVerified) {
         // Save answers
         $answers = $_POST["answers"];
         $questions = $_POST["questions"];
+        $custom_questions = $_POST["custom_questions"];
+
+        foreach($custom_questions as $ck => $cv) {
+            if (!empty($cv)) {
+                $questions[$ck] = $cv;
+            }
+        }
 
         // verify answers are not duplicates
         if( (sizeof(array_unique($answers)) != sizeof($answers)) || (sizeof(array_unique($questions)) != sizeof($questions)) ){
             $errorCode = 'INVALIDQUESTIONANSWERS';
             $t->data['todo'] = 'selectanswers';
-        } elseif (in_array(0, $questions) || sizeof($answers) < 3) {
+        } elseif (count($questions) < 3 || sizeof($answers) < 3) {
             $errorCode = 'INCOMPLETEQUESTIONS';
             $t->data['todo'] = 'selectanswers';
         } else {
-            $result = $qaLogin->registerAnswers($uid, $answers, $questions);
+
+            if (count(array_filter($custom_questions)) > 0) {
+                // we are dealing with one or more userdefined questions
+                $result = $qaLogin->registerCustomAnswers($uid, $answers, $questions);
+            } else {
+                $result = $qaLogin->registerAnswers($uid, $answers, $questions);
+            }
+
             if (!$result) {
                 // Failed to register answers for some reason. This is probably because one or more answer is too short
                 $errorCode = 'SHORTQUESTIONANSWERS';
@@ -232,6 +246,7 @@ if ($isRegistered && !$isSSLVerified) {
 $t->data['stateparams'] = array('AuthState' => $authStateId);
 $t->data['errorcode'] = $errorCode;
 $t->data['minAnswerLength'] = $qaLogin->getMinAnswerLength();
+$t->data['minQuestionLength'] = $qaLogin->getMinQuestionLength();
 
 // get the preferences agains as they may have changed above
 $prefs = $qaLogin->get2FactorFromUID($uid);

@@ -246,7 +246,7 @@ class Mail_smtp extends Mail {
     {
         /* If we don't already have an SMTP object, create one. */
         $result = &$this->getSMTPObject();
-        if (PEAR::isError($result)) {
+        if (@PEAR::isError($result)) {
             return $result;
         }
 
@@ -282,7 +282,7 @@ class Mail_smtp extends Mail {
                 $params .= ' ' . $key . (is_null($val) ? '' : '=' . $val);
             }
         }
-        if (PEAR::isError($res = $this->_smtp->mailFrom($from, ltrim($params)))) {
+        if (@PEAR::isError($res = $this->_smtp->mailFrom($from, ltrim($params)))) {
             $error = $this->_error("Failed to set sender: $from", $res);
             $this->_smtp->rset();
             return PEAR::raiseError($error, PEAR_MAIL_SMTP_ERROR_SENDER);

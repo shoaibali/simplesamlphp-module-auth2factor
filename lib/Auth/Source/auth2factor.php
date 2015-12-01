@@ -17,6 +17,7 @@
  *        'mailField' => 'email',
  *        'post_logout_url' => 'http://google.com', // URL to redirect to on logout. Optional
  *        'minAnswerLength' => 10, // Minimum answer length. Defaults to 0
+ *        'minQuestionLength' => 10, // Minimum answer length. Defaults to 0
  *        'singleUseCodeLength' => 10, // Minimum answer length. Defaults to 8
  *        'initSecretQuestions' => array('Question 1', 'Question 2', 'Question 3'), // Optional - Initialise the db with secret questions
  *        'maxCodeAge' => 60 * 5, // Maximum age for a one time code. Defaults to 5 minutes
@@ -47,10 +48,16 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
    */
   const ANSWERMINCHARLENGTH = 0;
 
-    /**
-     * Length of an SMS/Mail single use code
-     */
-    const SINGLEUSECODELENGTH = 8;
+  /**
+   * Default minimum length of secret answer required. Can be overridden in the config
+   */
+  const QUESTIONMINCHARLENGTH = 0;
+
+
+  /**
+   * Length of an SMS/Mail single use code
+   */
+  const SINGLEUSECODELENGTH = 8;
 
   /**
    * The key of the AuthId field in the state.
@@ -88,6 +95,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
     private $logoutURL;
     private $dbh;
     private $minAnswerLength;
+    private $minQuestionLength;
     private $singleUseCodeLength;
     private $maxCodeAge;
     private $mail;
@@ -130,7 +138,11 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
     } else {
        $this->minAnserLength = self::ANSWERMINCHARLENGTH;
     }
-
+    if (array_key_exists('minQuestionLength', $config)) {
+       $this->minQuestionLength = $config['minQuestionLength'];
+    } else {
+       $this->minQuestionLength = self::QUESTIONMINCHARLENGTH;
+    }
     if (array_key_exists('singleUseCodeLength', $config)) {
         $this->singleUseCodeLength = $config['singleUseCodeLength'];
     } else {
@@ -177,6 +189,10 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
 
   public function getMinAnswerLength() {
         return $this->minAnswerLength;
+  }
+
+  public function getMinQuestionLength() {
+        return $this->minQuestionLength;
   }
 
   public function authenticate(&$state) {
@@ -452,10 +468,19 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
     }
 
     public function getRandomQuestion($uid){
-        $q = $this->dbh->prepare("SELECT ssp_answers.question_id, ssp_questions.question_text FROM ssp_answers, ssp_questions WHERE ssp_answers.uid=:uid AND ssp_answers.question_id = ssp_questions.question_id;");
-        $result = $q->execute([':uid' => $uid]);
+        $preDefinedQuestionsQuery = $this->dbh->prepare("SELECT ssp_answers.question_id, ssp_questions.question_text FROM ssp_answers, ssp_questions WHERE ssp_answers.uid=:uid AND ssp_answers.question_id = ssp_questions.question_id;");
+        $pdqqr = $preDefinedQuestionsQuery->execute([':uid' => $uid]);
+        // also get any user defined questions
+        // TODO this could just be done in 1 query above
+        // I blame all these frameworks and ORMs I've been spoiled with (shoaib)
+        $userDefinedQuestionsQuery = $this->dbh->prepare("SELECT ssp_user_questions.user_question_id as question_id, ssp_user_questions.user_question as question_text FROM ssp_user_questions, ssp_answers WHERE ssp_user_questions.user_question_id = ssp_answers.user_question_id AND ssp_user_questions.uid=:uid");
+        $udqq = $userDefinedQuestionsQuery->execute([':uid' => $uid]);
 
-        $rows = $q->fetchAll();
+        $pdqq = $preDefinedQuestionsQuery->fetchAll();
+        $udqq = $userDefinedQuestionsQuery->fetchAll();
+
+        $rows = array_merge($pdqq, $udqq);
+
         // array_rand is quicker then SQL ORDER BY RAND()
         $random_question = $rows[array_rand($rows)];
         // TODO this question needs to be made persistent
@@ -475,7 +500,6 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
      * @param array $questions
      * @return bool
      */
-
     public function registerAnswers($uid,$answers, $questions) {
 
         // This check is probably not needed
@@ -501,6 +525,71 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
         return $result;
     }
 
+    /**
+     * Saves user submitted questions/answers in to database
+     *
+     * @param int $uid
+     * @param array $answers
+     * @param array $questions
+     * @return bool
+     */
+    public function registerCustomAnswers($uid,$answers, $questions) {
+
+        // This check is probably not needed
+        if (empty($answers) || empty($questions) || empty($uid)) return FALSE;
+
+        $question_answers = array_combine($answers, $questions);
+
+        foreach ($question_answers as $answer => $question) {
+            // Check for user defined question
+            if (!$this->isPredefinedQuestion($question)) {
+              // insert user defined question in to database
+              $insertCustomQuestion = $this->dbh->prepare("INSERT INTO ssp_user_questions (uid, user_question) VALUES (:uid, :user_question)");
+              $r = $insertCustomQuestion->execute([':uid' => $uid, ':user_question' => $question]);
+              $user_question_id = $this->dbh->lastInsertId();
+
+
+              // Check that the answer meets the length requirements
+              if ((strlen($answer) >= $this->minAnswerLength)
+                  && (strlen($question) >= $this->minQuestionLength)
+                  && (int) $user_question_id > 0
+              ) {
+                  $answer_salt = $this->generateRandomString();
+                  $answer_hash = $this->calculateAnswerHash($answer, $this->site_salt, $answer_salt);
+                  $q = $this->dbh->prepare("INSERT INTO ssp_answers (answer_salt, answer_hash, user_question_id, uid) VALUES (:answer_salt, :answer_hash, :user_question_id, :uid)");
+
+
+                  $result = $q->execute([':answer_salt' => $answer_salt,
+                                         ':answer_hash' => $answer_hash,
+                                         ':user_question_id' => $user_question_id,
+                                         ':uid' => $uid]);
+                  SimpleSAML_Logger::debug('auth2factor: ' . $uid . ' registered his answer: '. $answer . ' for custom_question_id:' . $user_question_id);
+              } else {
+                  $result = FALSE;
+              }
+
+
+            } else { // dealing with pre-defined questions below
+
+              // Check that the answer meets the length requirements
+              if ((strlen($answer) >= $this->minAnswerLength) && (int) $question > 0) {
+                  $answer_salt = $this->generateRandomString();
+                  $answer_hash = $this->calculateAnswerHash($answer, $this->site_salt, $answer_salt);
+                  $q = $this->dbh->prepare("INSERT INTO ssp_answers (answer_salt, answer_hash, question_id, uid) VALUES (:answer_salt, :answer_hash, :question, :uid)");
+
+
+                  $result = $q->execute([':answer_salt' => $answer_salt,
+                                         ':answer_hash' => $answer_hash,
+                                         ':question' => $question,
+                                         ':uid' => $uid]);
+                  SimpleSAML_Logger::debug('auth2factor: ' . $uid . ' registered his answer: '. $answer . ' for question_id:' . $question);
+              } else {
+                  $result = FALSE;
+              }
+            }
+        }
+        return $result;
+    }
 
     /**
      * Verify user submitted answer against their question
@@ -515,7 +604,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
         $match = FALSE;
 
         foreach($answers as $a){
-          if ($question_id == $a["question_id"]) {
+          if ($question_id == $a["question_id"] || $question_id == $a["user_question_id"]) {
                 $answer_salt = $a['answer_salt'];
                 $submitted_hash = $this->calculateAnswerHash($answer, $this->site_salt, $answer_salt);
                 if ($submitted_hash == $a["answer_hash"]) {
@@ -565,22 +654,38 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
      *
      * @return boolean True if the client cert is there and is valid
      */
-    function hasValidCert($uid)
+    public function hasValidCert($uid)
     {
-        if (!isset($_SERVER['SSL_CLIENT_M_SERIAL'])
-            || !isset($_SERVER['SSL_CLIENT_V_END'])
-            || !isset($_SERVER['SSL_CLIENT_VERIFY'])
-            || $_SERVER['SSL_CLIENT_VERIFY'] !== 'SUCCESS'
-            || !isset($_SERVER['SSL_CLIENT_I_DN'])
-        ) {
-            return false;
-        }
+      if (!isset($_SERVER['SSL_CLIENT_M_SERIAL'])
+          || !isset($_SERVER['SSL_CLIENT_V_END'])
+          || !isset($_SERVER['SSL_CLIENT_VERIFY'])
+          || $_SERVER['SSL_CLIENT_VERIFY'] !== 'SUCCESS'
+          || !isset($_SERVER['SSL_CLIENT_I_DN'])
+      ) {
+          return false;
+      }
 
-        if ($_SERVER['SSL_CLIENT_V_REMAIN'] <= 0) {
-            return false;
-        }
-        $this->set2Factor($uid, self::FACTOR_SSL);
-        return true;
+      if ($_SERVER['SSL_CLIENT_V_REMAIN'] <= 0) {
+          return false;
+      }
+      $this->set2Factor($uid, self::FACTOR_SSL);
+      return true;
+    }
+
+    /**
+     * Determines if it is a predefined question or not
+     *
+     * @return boolean True if the client cert is there and is valid
+     */
+    private function isPredefinedQuestion($question) {
+
+      $q = $this->dbh->prepare("SELECT COUNT(*) as predefined_count FROM ssp_questions WHERE question_id = :question_id LIMIT 1;");
+
+      $result = $q->execute([':question_id' => $question]);
+      $rows = $q->fetchAll();
+      $records_count =  $rows[0]["predefined_count"];
+      return (bool) ($records_count > 0)? TRUE : FALSE;
+
     }
 
 }

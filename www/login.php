@@ -57,6 +57,12 @@ $t->data['useSMS'] = true; // there is no SMS support this is misused for Email 
 if ($isSSLVerified) {
     $state['saml:AuthnContextClassRef'] = $qaLogin->tfa_authencontextclassref;
     SimpleSAML_Auth_Source::completeAuth($state);
+    exit();
+} else {
+    // if SSL verification has failed make sure we fall back on question
+    if (!$qaLogin->hasMailCode($uid)) {
+        $qaLogin->set2Factor($uid, 'question');
+    }
 }
 
 /******************************
@@ -179,7 +185,6 @@ if ($isRegistered && !$isSSLVerified) {
                     }
                     else {
                        $t->data['todo'] = 'loginCode';
-
                         // TODO don't need to verify an invalid code
                         $loggedIn = $qaLogin->verifyChallenge($uid, $_POST['answer']);
 
@@ -227,9 +232,13 @@ if ($isRegistered && !$isSSLVerified) {
             // User asked to reset their question and answers
             case $t->t('{auth2factor:login:resetquestions}'):
                 $qaLogin->set2Factor($uid, 'questions');
-                $qaLogin->unregisterQuestions($uid);
-                $t->data['todo'] = 'selectanswers';
-                $t->data['useSMS'] = false;
+                $unregistered  = $qaLogin->unregisterQuestions($uid);
+                if ($unregistered) {
+                    $t->data['todo'] = 'selectanswers';
+                    $t->data['useSMS'] = false;
+                    $qaLogin->sendQuestionResetEmail($attributes);
+                }
+
                 break;
 
             case $t->t('{auth2factor:login:resend}'):
@@ -255,7 +264,6 @@ $t->data['minQuestionLength'] = $qaLogin->getMinQuestionLength();
 // get the preferences agains as they may have changed above
 $prefs = $qaLogin->get2FactorFromUID($uid);
 
-
 if (!$t->data['todo'] == 'selectauthpref') {
     if ($prefs['challenge_type'] == 'question') {
         $t->data['todo'] = 'loginANSWER';
@@ -263,6 +271,7 @@ if (!$t->data['todo'] == 'selectauthpref') {
         $t->data['useSMS'] = true;
         $t->data['todo'] = 'loginCode';
         if(!$qaLogin->hasMailCode($uid)) {
+            // TODO investigate this seems like a pointless condition never gets executed!
             $qaLogin->sendMailCode($uid, $email);
         }
     }

@@ -346,16 +346,75 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
      * @return bool
      */
     public function set2Factor($uid, $type, $code="") {
-        $q = $this->dbh->prepare("INSERT INTO ssp_user_2factor (uid, challenge_type, last_code, last_code_stamp)
-                                  VALUES (:uid,
-                                          :type,
-                                          :code,
-                                          NOW()) ON DUPLICATE KEY UPDATE challenge_type=:type, last_code=:code, last_code_stamp=NOW();");
+        $q = $this->dbh->prepare(
+          "INSERT INTO ssp_user_2factor (uid, challenge_type, last_code, last_code_stamp)
+            VALUES (:uid, :type, :code, NOW())
+            ON DUPLICATE KEY UPDATE challenge_type=:type, last_code=:code, last_code_stamp=NOW();");
 
         $result = $q->execute([':uid' => $uid, ':type' => $type, ':code' => $code]);
         SimpleSAML_Logger::debug('auth2factor: ' . $uid . ' set preferences: '. $type . ' code:' . $code);
 
         return $result;
+    }
+
+    public function sendQuestionResetEmail($attributes) {
+
+        require_once('Mail.php');
+
+        $auth = false;
+        $username = '';
+        $password = '';
+
+        // only turn on authentication if we have username and password
+        if(isset($this->mail["username"]) && isset($this->mail["password"])) {
+          $auth = true;
+          $username = $this->mail["username"];
+          $password = $this->mail["password"];
+        }
+
+          $name = $attributes['givenName'][0];
+          $email = $attributes['mail'][0];
+          $subject = " Tait SSO, question reset notification";
+          $body = <<<EOD
+
+Dear $name,
+
+This is an email to let you know that your secret questions and answers on Tait SSO have been reset.
+
+If this is something you did not initiate, kindly report this incided to security@taitradio.com
+
+Regards,
+
+Tait Security Team
+
+EOD;
+
+        if (isset($this->mail)) {
+          $params = array("host" => $this->mail["host"],
+                          "port" => $this->mail["port"],
+                          "auth" => $auth,
+                          "username" => $username,
+                          "password" => $password,
+                          "debug" => $this->mail["debug"],
+                          );
+
+          $headers = array(
+                      "To" => $email,
+                      "From" => $this->mail["from"],
+                      "Subject" => $this->mail["subject"]  . $subject,
+                    );
+
+          $mail = new Mail();
+
+          $mail_factory = $mail->factory('smtp', $params); // Print the parameters you are using to the page
+          $mail_factory->send($email, $headers, $body);
+
+
+        } else {
+          // fall back to normal mail function
+          mail($email, $subject, $body);
+        }
+        SimpleSAML_Logger::debug('auth2factor: sending notification email of question reset to '. $attributes['uid'][0]);
     }
 
     public function sendMailCode($uid, $email) {
@@ -367,19 +426,30 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
         // sudo pear install Net_SMTP
         require_once('Mail.php');
 
+        $auth = false;
+        $username = '';
+        $password = '';
+
+        // only turn on authentication if we have username and password
+        if(isset($this->mail["username"]) && isset($this->mail["password"])) {
+          $auth = true;
+          $username = $this->mail["username"];
+          $password = $this->mail["password"];
+        }
         if (isset($this->mail)) {
           $params = array("host" => $this->mail["host"],
                           "port" => $this->mail["port"],
-                          "auth" => true,
-                          "username" => $this->mail["username"],
-                          "password" => $this->mail["password"],
+                          "auth" => $auth,
+                          "username" => $username,
+                          "password" => $password,
                           "debug" => $this->mail["debug"],
                           );
 
-          $headers = array("To" => $email,
-                            "From" => $this->mail["from"],
-                            "Subject" => $this->mail["subject"] . " Code = " . $code,
-                            );
+          $headers = array(
+                      "To" => $email,
+                      "From" => $this->mail["from"],
+                      "Subject" => $this->mail["subject"] . " Code = " . $code,
+                    );
 
           $mail = new Mail();
 
@@ -421,6 +491,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
         $q = $this->dbh->prepare("SELECT uid, last_code, last_code_stamp FROM ssp_user_2factor WHERE uid=:uid AND challenge_type = 'mail' ORDER BY last_code_stamp DESC;");
         $result = $q->execute([':uid' => $uid]);
         $rows = $q->fetchAll();
+
         if (count($rows) == 0) {
             SimpleSAML_Logger::debug('User '.$uid.' has no challenge');
             return false;
@@ -529,20 +600,24 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
      * Saves user submitted answers in to database
      *
      * @param int $uid
+     * @return boolean
      */
     public function unregisterQuestions($uid) {
       $answers = $this->dbh->prepare("DELETE FROM ssp_answers WHERE uid=:uid");
 
       $questions = $this->dbh->prepare("DELETE FROM ssp_user_questions WHERE uid=:uid");
 
-      $answers->execute([':uid' => $uid]);
-      $questions->execute([':uid' => $uid]);
+      $resetAnswers = $answers->execute([':uid' => $uid]);
+      $resetQuestions = $questions->execute([':uid' => $uid]);
 
-      // make sure the preference is still set to questions!
-      $this->set2Factor($uid, 'question');
+      if ($resetAnswers && $resetQuestions) {
+        // make sure the preference is still set to questions!
+        $this->set2Factor($uid, 'question');
+        SimpleSAML_Logger::debug('auth2factor: ' . $uid . ' has asked to reset their questions (including user defined)');
+        return true;
+      }
 
-      SimpleSAML_Logger::debug('auth2factor: ' . $uid . ' has asked to reset their questions (including user defined)');
-
+      return false;
     }
 
     /**
@@ -641,6 +716,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
             $q = $this->dbh->prepare("SELECT uid, last_code, last_code_stamp FROM ssp_user_2factor WHERE uid=:uid ORDER BY last_code_stamp DESC;");
             $result = $q->execute([':uid' => $uid]);
             $rows = $q->fetchAll();
+
             if ($rows[0]['last_code'] === trim($answer)) {
                 SimpleSAML_Logger::debug('User '.$uid.' passed good code');
                 $q = $this->dbh->prepare("UPDATE ssp_user_2factor SET last_code=NULL,last_code_stamp=NULL WHERE uid=:uid;");

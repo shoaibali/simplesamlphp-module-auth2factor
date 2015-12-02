@@ -418,7 +418,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
     }
 
     public function hasMailCode($uid) {
-        $q = $this->dbh->prepare("SELECT uid, last_code, last_code_stamp FROM ssp_user_2factor WHERE uid=:uid ORDER BY last_code_stamp DESC;");
+        $q = $this->dbh->prepare("SELECT uid, last_code, last_code_stamp FROM ssp_user_2factor WHERE uid=:uid AND challenge_type = 'mail' ORDER BY last_code_stamp DESC;");
         $result = $q->execute([':uid' => $uid]);
         $rows = $q->fetchAll();
         if (count($rows) == 0) {
@@ -523,6 +523,26 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
             }
         }
         return $result;
+    }
+
+    /**
+     * Saves user submitted answers in to database
+     *
+     * @param int $uid
+     */
+    public function unregisterQuestions($uid) {
+      $answers = $this->dbh->prepare("DELETE FROM ssp_answers WHERE uid=:uid");
+
+      $questions = $this->dbh->prepare("DELETE FROM ssp_user_questions WHERE uid=:uid");
+
+      $answers->execute([':uid' => $uid]);
+      $questions->execute([':uid' => $uid]);
+
+      // make sure the preference is still set to questions!
+      $this->set2Factor($uid, 'question');
+
+      SimpleSAML_Logger::debug('auth2factor: ' . $uid . ' has asked to reset their questions (including user defined)');
+
     }
 
     /**

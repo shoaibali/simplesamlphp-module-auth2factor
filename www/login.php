@@ -50,8 +50,7 @@ $isRegistered = $qaLogin->isRegistered($uid);
 $isSSLVerified = $qaLogin->hasValidCert($uid);
 
 $prefs = $qaLogin->get2FactorFromUID($uid);
-$t->data['useSMS'] = true;
-
+$t->data['useSMS'] = true; // there is no SMS support this is misused for Email based code
 
 // if we are using SSL ceritificate to verify then we do not need 2-factor
 
@@ -69,9 +68,9 @@ if (!$isRegistered && !$isSSLVerified) {
     //If the user has not set his preference of 2 factor authentication, redirect to settings page
     if ( isset($_POST['answers']) && isset($_POST['questions']) ){
         // Save answers
-        $answers = $_POST["answers"];
-        $questions = $_POST["questions"];
-        $custom_questions = $_POST["custom_questions"];
+        $answers = (isset($_POST["answers"]))? $_POST["answers"] : [];
+        $questions = (isset($_POST["questions"]))? $_POST["questions"] : [];
+        $custom_questions = (isset($_POST["custom_questions"]))?  $_POST["custom_questions"] : [];
 
         foreach($custom_questions as $ck => $cv) {
             if (!empty($cv)) {
@@ -108,7 +107,6 @@ if (!$isRegistered && !$isSSLVerified) {
         }
 
     } else {
-
         // We are setting the preference of user for the first time
         if(isset($_POST["authpref"])) {
             $t->data['todo'] = 'selectanswers';
@@ -142,7 +140,7 @@ if ($isRegistered && !$isSSLVerified) {
     // do this if it's questions
 
     $t->data['autofocus'] = 'answer';
-    if ($prefs['challenge_type'] == 'question' && (count($qaLogin->getAnswersFromUID($uid)))) {
+    if ($prefs['challenge_type'] == 'question' && (count($qaLogin->getAnswersFromUID($uid))>0)) {
 
         $t->data['todo'] = 'loginANSWER';
         $t->data['useSMS'] = false;
@@ -199,7 +197,6 @@ if ($isRegistered && !$isSSLVerified) {
 
             // Switch to Questions button pushed
             case $t->t('{auth2factor:login:switchtoq}'):
-                //error_log('switchtoq');
                 if(count($qaLogin->getAnswersFromUID($uid))) {
                     // get a random question
                     $random_question = $qaLogin->getRandomQuestion($uid);
@@ -219,13 +216,20 @@ if ($isRegistered && !$isSSLVerified) {
 
                 break;
 
-            // Switch to SMS button pushed
+            // Switch to Mail code button (link) pushed
             case $t->t('{auth2factor:login:switchtomail}'):
-                //error_log('switchtosms');
                 $qaLogin->set2Factor($uid, 'mail');
                 $qaLogin->sendMailCode($uid, $email);
                 $t->data['todo'] = 'loginCode';
                 $t->data['useSMS'] = true;
+                break;
+
+            // User asked to reset their question and answers
+            case $t->t('{auth2factor:login:resetquestions}'):
+                $qaLogin->set2Factor($uid, 'questions');
+                $qaLogin->unregisterQuestions($uid);
+                $t->data['todo'] = 'selectanswers';
+                $t->data['useSMS'] = false;
                 break;
 
             case $t->t('{auth2factor:login:resend}'):
@@ -250,6 +254,7 @@ $t->data['minQuestionLength'] = $qaLogin->getMinQuestionLength();
 
 // get the preferences agains as they may have changed above
 $prefs = $qaLogin->get2FactorFromUID($uid);
+
 
 if (!$t->data['todo'] == 'selectauthpref') {
     if ($prefs['challenge_type'] == 'question') {

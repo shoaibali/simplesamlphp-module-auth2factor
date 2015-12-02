@@ -111,6 +111,7 @@ $this->data['header'] = $this->t('{auth2factor:login:authentication}');
         <input id="answer" class="yubifield" type="text" tabindex="1" name="answer" />
         <input id="submit" class="submitbutton" type="submit" tabindex="2" name="submit" value="<?php echo $this->t('{auth2factor:login:next}')?>"/>
         <input class="submitbutton" type="submit" tabindex="3" name="submit" value="<?php echo $this->t('{auth2factor:login:switchtomail}')?>" />
+        <input id="resetquestions" class="submitbutton" type="submit" tabindex="4" name="submit" value="<?php echo $this->t('{auth2factor:login:resetquestions}')?>"/>
         </p>
     </div>
     <?php elseif ( $this->data['todo'] == 'loginCode' ) : ?>
@@ -123,7 +124,7 @@ $this->data['header'] = $this->t('{auth2factor:login:authentication}');
         <input id="answer" class="yubifield" type="text" tabindex="1" name="answer" />
         <input id="submit" class="submitbutton" type="submit" tabindex="2" name="submit" value="<?php echo $this->t('{auth2factor:login:next}')?>"/>
         <input class="submitbutton" type="submit" tabindex="3" name="submit" value="<?php echo $this->t('{auth2factor:login:switchtoq}')?>" />
-        <input id="resent" class="submitbutton" type="submit" tabindex="2" name="submit" value="<?php echo $this->t('{auth2factor:login:resend}')?>"/>
+        <input class="submitbutton" type="submit" tabindex="4" name="submit" value="<?php echo $this->t('{auth2factor:login:switchtoq}')?>" />
         </p>
     </div>
     <?php endif ; ?>

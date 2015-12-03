@@ -375,18 +375,18 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
 
           $name = $attributes['givenName'][0];
           $email = $attributes['mail'][0];
-          $subject = " Tait SSO, question reset notification";
+          $subject = " Secret questions reset notification";
           $body = <<<EOD
 
 Dear $name,
 
-This is an email to let you know that your secret questions and answers on Tait SSO have been reset.
+This is an email to let you know that your secret questions and answers have been reset.
 
-If this is something you did not initiate, kindly report this incided to security@taitradio.com
+If this is something you did not initiate, kindly report this incident.
 
 Regards,
 
-Tait Security Team
+Security Team
 
 EOD;
 

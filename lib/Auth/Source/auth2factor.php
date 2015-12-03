@@ -21,6 +21,7 @@
  *        'singleUseCodeLength' => 10, // Minimum answer length. Defaults to 8
  *        'initSecretQuestions' => array('Question 1', 'Question 2', 'Question 3'), // Optional - Initialise the db with secret questions
  *        'maxCodeAge' => 60 * 5, // Maximum age for a one time code. Defaults to 5 minutes
+ *        'ssl.clientVerify' => false, // turned off by default, if turned on then other 2nd step verifications are bypassed
  *        'mail' => array('host' => 'ssl://smtp.gmail.com',
  *                        'port' => '465',
  *                        'from' => 'cloudfiles.notifications@mydomain.com',
@@ -68,7 +69,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
      *   sstc-saml-loa-authncontext-profile-draft.odt
     */
 
-    const TFAAUTHNCONTEXTCLASSREF = 'urn:oasis:names:tc:SAML:2.0:post:ac:classes:nist-800-63:3';
+  const TFAAUTHNCONTEXTCLASSREF = 'urn:oasis:names:tc:SAML:2.0:post:ac:classes:nist-800-63:3';
 
     /**
      * 2 Factor type constants

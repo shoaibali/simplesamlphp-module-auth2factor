@@ -47,7 +47,11 @@ $uid = $attributes[ $as['uidField'] ][0];
 $email = $attributes[ $as['emailField'] ][0]; // todo fall back on uid if not set
 $state['UserID'] = $uid;
 $isRegistered = $qaLogin->isRegistered($uid);
-$isSSLVerified = $qaLogin->hasValidCert($uid);
+$isSSLVerified = false;
+
+if ( $as['ssl.clientVerify'] ) {
+    $isSSLVerified = $qaLogin->hasValidCert($uid);
+}
 
 $prefs = $qaLogin->get2FactorFromUID($uid);
 $t->data['useSMS'] = true; // there is no SMS support this is misused for Email based code
@@ -57,7 +61,6 @@ $t->data['useSMS'] = true; // there is no SMS support this is misused for Email 
 if ($isSSLVerified) {
     $state['saml:AuthnContextClassRef'] = $qaLogin->tfa_authencontextclassref;
     SimpleSAML_Auth_Source::completeAuth($state);
-    exit();
 } else {
     // if SSL verification has failed make sure we fall back on question
     if (!$qaLogin->hasMailCode($uid)) {

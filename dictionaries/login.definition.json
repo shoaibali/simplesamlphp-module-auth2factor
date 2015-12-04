@@ -11,7 +11,7 @@
 	"switchtosms": {
 		"en": "Switch to SMS"
 	},
-    	"switchtomail": {
+	"switchtomail": {
 		"en": "Switch to Email Code"
 	},
 	"switchtoq": {
@@ -19,6 +19,9 @@
 	},
 	"smscode": {
 		"en": "SMS Code"
+	},
+	"resetquestions": {
+		"en": "Reset questions"
 	},
 	"entersmscode": {
 		"en": "Please enter the 6 digit code received via SMS TXT message"

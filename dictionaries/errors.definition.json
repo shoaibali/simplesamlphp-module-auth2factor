@@ -15,7 +15,7 @@
         "en": "Account locked!"
     },
     "descr_ACCOUNTLOCKED": {
-        "en": "This account has been locked due to too many invalid login attempts. Please contact the system administrators!"
+        "en": "This account has been locked due to too many invalid login attempts. Please contact the administrators!"
     },
     "title_INVALIDQUESTIONANSWERS": {
         "en": "Duplicate question or answers provided"

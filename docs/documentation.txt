@@ -19,6 +19,7 @@ Questions and answers database tables are automatically created if they don't ex
  *        'minQuestionLength' => 5, // Minimum user defined question length. Defaults to 0
  *        'initSecretQuestions' => array('Question 1', 'Question 2', 'Question 3'), // optional default questions
  *        'maxCodeAge' => 60 * 5, // Maximum age for a one time code. Defaults to 5 minutes
+ *        'maxFailLogin' => 5, // maximum amount of failed logins before locking the account
  *        'mail' => array('host' => '127.0.0.1',
  *                        'port' => '25',
  *                        'from' => 'security@shoaibali.com',

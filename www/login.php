@@ -43,22 +43,29 @@ $attributes = $session->getAttributes();
 $state['Attributes'] = $attributes;
 
 
+
 $uid = $attributes[ $as['uidField'] ][0];
 $email = $attributes[ $as['emailField'] ][0]; // todo fall back on uid if not set
+$givenName = $attributes[$as['givenName']][0];
+
 $state['UserID'] = $uid;
 $isRegistered = $qaLogin->isRegistered($uid);
-$isSSLVerified = false;
-
-if ( $as['ssl.clientVerify'] ) {
-    $isSSLVerified = $qaLogin->hasValidCert($uid);
-}
+$isSSLVerified = $qaLogin->hasValidCert($uid);
+$accountLocked = $qaLogin->isLocked($uid);
 
 $prefs = $qaLogin->get2FactorFromUID($uid);
 $t->data['useSMS'] = true; // there is no SMS support this is misused for Email based code
 
-// if we are using SSL ceritificate to verify then we do not need 2-factor
+// Check account is locked or not
+if($accountLocked) {
+    $errorCode = 'ACCOUNTLOCKED';
+    $t->data['todo'] = 'loginCode';
+    // destroy session and the user out
+    $qaLogin->logout($state);
+}
 
-if ($isSSLVerified) {
+// if we are using SSL ceritificate to verify then we do not need 2-factor
+if ($isSSLVerified && !$accountLocked) {
     $state['saml:AuthnContextClassRef'] = $qaLogin->tfa_authencontextclassref;
     SimpleSAML_Auth_Source::completeAuth($state);
 } else {
@@ -145,9 +152,9 @@ if (!$isRegistered && !$isSSLVerified) {
  *          EXISTING USERS
  ******************************/
 
-if ($isRegistered && !$isSSLVerified) {
-    // do this if it's questions
+if ($isRegistered && !$isSSLVerified && !$accountLocked) {
 
+    // do this if it's questions
     $t->data['autofocus'] = 'answer';
     if ($prefs['challenge_type'] == 'question' && (count($qaLogin->getAnswersFromUID($uid))>0)) {
 
@@ -180,9 +187,20 @@ if ($isRegistered && !$isSSLVerified) {
                         $loggedIn = $qaLogin->verifyAnswer($uid, $_POST['question_id'], $_POST['answer']);
                         if ($loggedIn){
                             $state['saml:AuthnContextClassRef'] = $qaLogin->tfa_authencontextclassref;
+                            $qaLogin->resetFailedLoginAttempts($uid, 'answer_count');
                             SimpleSAML_Auth_Source::completeAuth($state);
                         } else {
                             $errorCode = 'WRONGANSWER';
+                            // only increment if the account is not already locked
+                            if (!$qaLogin->isLocked($uid)) {
+                                $qaLogin->failedLoginAttempt($uid, 'answer_count', array(
+                                                                                        'name' => $givenName,
+                                                                                        'mail' => $email,
+                                                                                        'uid' => $uid
+                                                                                    )
+                                );
+                            }
+
                             $t->data['todo'] = 'loginANSWER';
                         }
                     }
@@ -193,10 +211,18 @@ if ($isRegistered && !$isSSLVerified) {
 
                         if ($loggedIn){
                           $state['saml:AuthnContextClassRef'] = $qaLogin->tfa_authencontextclassref;
+                          $qaLogin->resetFailedLoginAttempts($uid, 'answer_count');
                           SimpleSAML_Auth_Source::completeAuth($state);
                         } else {
                           $errorCode = 'CODEXPIRED';
-
+                          if (!$qaLogin->isLocked($uid)) {
+                            $qaLogin->failedLoginAttempt($uid, 'answer_count', array(
+                                                                                        'name' => $givenName,
+                                                                                        'mail' => $email,
+                                                                                        'uid' => $uid
+                                                                                    )
+                            );
+                          }
                         }
                    }
                 }
@@ -208,8 +234,10 @@ if ($isRegistered && !$isSSLVerified) {
                 if(count($qaLogin->getAnswersFromUID($uid))) {
                     // get a random question
                     $random_question = $qaLogin->getRandomQuestion($uid);
-                    $t->data['random_question'] = array("question_text" => $random_question["question_text"],
-                                            "question_id" => $random_question["question_id"]);
+                    $t->data['random_question'] = array(
+                                                    "question_text" => $random_question["question_text"],
+                                                    "question_id" => $random_question["question_id"]
+                                                  );
                 }
 
                 $qaLogin->set2Factor($uid, 'question');
@@ -248,6 +276,14 @@ if ($isRegistered && !$isSSLVerified) {
                 $qaLogin->sendMailCode($uid, $email);
                 $t->data['todo'] = 'loginCode';
                 $t->data['useSMS'] = true;
+                if (!$qaLogin->isLocked($uid)) {
+                    $qaLogin->failedLoginAttempt($uid, 'answer_count', array(
+                                                                                        'name' => $givenName,
+                                                                                        'mail' => $email,
+                                                                                        'uid' => $uid
+                                                                                    )
+                    );
+                }
                 break;
             default:
                 break;

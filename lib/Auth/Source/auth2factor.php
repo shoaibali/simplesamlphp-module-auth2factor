@@ -22,6 +22,7 @@
  *        'initSecretQuestions' => array('Question 1', 'Question 2', 'Question 3'), // Optional - Initialise the db with secret questions
  *        'maxCodeAge' => 60 * 5, // Maximum age for a one time code. Defaults to 5 minutes
  *        'ssl.clientVerify' => false, // turned off by default, if turned on then other 2nd step verifications are bypassed
+ *        'maxFailLogin' => 5, // maximum amount of failed logins before locking the account
  *        'mail' => array('host' => 'ssl://smtp.gmail.com',
  *                        'port' => '465',
  *                        'from' => 'cloudfiles.notifications@mydomain.com',
@@ -100,6 +101,9 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
     private $singleUseCodeLength;
     private $maxCodeAge;
     private $mail;
+    private $maxFailLogin;
+    private $ssl_clientVerify;
+    private $notificationEmail;
 
     public $tfa_authencontextclassref;
 
@@ -135,21 +139,32 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
        $this->logoutURL = '/logout';
     }
     if (array_key_exists('minAnswerLength', $config)) {
-       $this->minAnswerLength = $config['minAnswerLength'];
+       $this->minAnswerLength = (int) $config['minAnswerLength'];
     } else {
        $this->minAnserLength = self::ANSWERMINCHARLENGTH;
     }
     if (array_key_exists('minQuestionLength', $config)) {
-       $this->minQuestionLength = $config['minQuestionLength'];
+       $this->minQuestionLength = (int) $config['minQuestionLength'];
     } else {
        $this->minQuestionLength = self::QUESTIONMINCHARLENGTH;
     }
     if (array_key_exists('singleUseCodeLength', $config)) {
-        $this->singleUseCodeLength = $config['singleUseCodeLength'];
+        $this->singleUseCodeLength = (int) $config['singleUseCodeLength'];
     } else {
         $this->singleUseCodeLength = self::SINGLEUSECODELENGTH;
     }
+    if (array_key_exists('maxFailLogin', $config)) {
+      $this->maxFailLogin = (int) $config['maxFailLogin'];
+    }
+    if (array_key_exists('notificationEmail', $config)) {
+      $this->notificationEmail = $config['notificationEmail'];
+    }
 
+    if (array_key_exists('ssl.clientVerify', $config)) {
+      $this->ssl_clientVerify = (bool) $config['ssl.clientVerify'];
+    } else {
+      $this->ssl_clientVerify = false;
+    }
     if (array_key_exists('maxCodeAge', $config)) {
         $this->maxCodeAge = $config['maxCodeAge'];
     } else {
@@ -751,8 +766,10 @@ EOD;
      *
      * @return boolean True if the client cert is there and is valid
      */
-    public function hasValidCert($uid)
-    {
+    public function hasValidCert($uid) {
+      // always return false if SSL client cert verification turned off
+      return $this->ssl_clientVerify;
+
       if (!isset($_SERVER['SSL_CLIENT_M_SERIAL'])
           || !isset($_SERVER['SSL_CLIENT_V_END'])
           || !isset($_SERVER['SSL_CLIENT_VERIFY'])
@@ -770,8 +787,209 @@ EOD;
     }
 
     /**
+     * Increments failed login attempt for
+     * login, mail code and secret questions
+     *
+     * @param int $uid userid
+     * @param  string $type Column name
+     */
+    public function failedLoginAttempt($uid, $type, $attributes = array()) {
+      // write it back to database the new count
+      $q = $this->dbh->prepare("UPDATE ssp_user_2factor SET $type = $type + 1 WHERE uid=:uid LIMIT 1;");
+      $result = $q->execute([':uid' => $uid]);
+      SimpleSAML_Logger::debug('User '.$uid.' failed login attempt with ' . $type);
+      // lock the account!
+      $failedAttempts = $this->getFailedAttempts($uid);
+
+      if ($this->maxFailLogin == ((int)$failedAttempts[0]['login_count'] + (int) $failedAttempts[0]['answer_count'])) {
+        SimpleSAML_Logger::debug('User '.$uid.' has exceeded max failed login attempts of ' . $this->maxFailLogin);
+        $this->lockAccount($uid);
+        $this->emailAdministrators($attributes);
+        $this->emailUser($attributes['uid'], $attributes['mail'], $attributes['name']);
+      }
+    }
+
+    /**
+     * Returns a count of failed attempts
+     * using username/password or secret question or mailcode
+     *
+     * @param int $uid userid
+     * @return  array $count
+     */
+    public function getFailedAttempts($uid) {
+
+      $q = $this->dbh->prepare("SELECT login_count, answer_count FROM ssp_user_2factor WHERE uid=:uid LIMIT 1;");
+      $result = $q->execute([':uid' => $uid]);
+      $rows = $q->fetchAll();
+
+      return $rows;
+    }
+
+   /**
+     * Reset login attempts back to zero
+     *
+     * @param int $uid userid
+     * @param  string $type Column name
+     */
+    public function resetFailedLoginAttempts($uid, $type = 'login_count') {
+      $q = $this->dbh->prepare("UPDATE ssp_user_2factor SET $type = 0 WHERE uid=:uid LIMIT 1;");
+      $result = $q->execute([':uid' => $uid]);
+      SimpleSAML_Logger::debug('User '.$uid.' reset login attempts back to zero');
+    }
+
+   /**
+     * Checks if user account is locked or not
+     *
+     * @param int $uid userid
+     * @param boolean locked
+     */
+    public function isLocked($uid) {
+      $q = $this->dbh->prepare("SELECT locked FROM ssp_user_2factor WHERE uid=:uid LIMIT 1;");
+      $result = $q->execute([':uid' => $uid]);
+      $rows = $q->fetchAll();
+
+      return (bool) $rows[0]['locked'];
+    }
+
+   /**
+     * Locks the user account and resets failed attempts to zero
+     *
+     * @param int $uid userid
+     */
+    private function lockAccount($uid) {
+      $q = $this->dbh->prepare("UPDATE ssp_user_2factor SET locked = 1 WHERE uid=:uid LIMIT 1;");
+      $result = $q->execute([':uid' => $uid]);
+
+      $this->resetFailedLoginAttempts($uid, 'login_count');
+      $this->resetFailedLoginAttempts($uid, 'answer_count');
+
+      SimpleSAML_Logger::debug('User '.$uid.' account is now locked');
+    }
+
+    private function emailAdministrators($attributes) {
+        if (!empty($this->notificationEmail) && !empty($attributes)) {
+          foreach($this->notificationEmail as $email) {
+
+             require_once('Mail.php');
+
+              $auth = false;
+              $username = '';
+              $password = '';
+
+              // only turn on mail smtp authentication if we have username and password
+              if(isset($this->mail["username"]) && isset($this->mail["password"])) {
+                $auth = true;
+                $username = $this->mail["username"];
+                $password = $this->mail["password"];
+              }
+
+                $useremail = $attributes['mail'];
+                $name = $attributes['name'];
+                $id = $attributes['uid'];
+                $subject = " Account locked notification";
+                $body = <<<EOD
+Dear Administrator,
+
+This is an email to let you know that account of name: '$name' , id: '$id' with email address : '$useremail'  has been locked.
+
+Yours truely,
+SSO System
+
+EOD;
+
+              if (isset($this->mail)) {
+                $params = array("host" => $this->mail["host"],
+                                "port" => $this->mail["port"],
+                                "auth" => $auth,
+                                "username" => $username,
+                                "password" => $password,
+                                "debug" => $this->mail["debug"],
+                                );
+
+                $headers = array(
+                            "To" => $email,
+                            "From" => $this->mail["from"],
+                            "Subject" => $this->mail["subject"]  . $subject,
+                          );
+
+                $mail = new Mail();
+
+                $mail_factory = $mail->factory('smtp', $params); // Print the parameters you are using to the page
+                $mail_factory->send($email, $headers, $body);
+
+
+              } else {
+                // fall back to normal mail function
+                mail($email, $subject, $body);
+              }
+
+          }
+        }
+    }
+
+    /* Email user of his/hesr account being locked */
+
+    private function emailUser($uid, $email, $name) {
+        if (isset($email)) {
+
+             require_once('Mail.php');
+
+              $auth = false;
+              $username = '';
+              $password = '';
+
+              // only turn on mail smtp authentication if we have username and password
+              if(isset($this->mail["username"]) && isset($this->mail["password"])) {
+                $auth = true;
+                $username = $this->mail["username"];
+                $password = $this->mail["password"];
+              }
+
+                $subject = " Account locked notification";
+                $body = <<<EOD
+Dear $name,
+
+This is an email to let you know that account '$uid' has been locked. Please contact system administrators.
+
+Regards,
+
+Security Team
+
+EOD;
+
+              if (isset($this->mail)) {
+                $params = array("host" => $this->mail["host"],
+                                "port" => $this->mail["port"],
+                                "auth" => $auth,
+                                "username" => $username,
+                                "password" => $password,
+                                "debug" => $this->mail["debug"],
+                                );
+
+                $headers = array(
+                            "To" => $email,
+                            "From" => $this->mail["from"],
+                            "Subject" => $this->mail["subject"]  . $subject,
+                          );
+
+                $mail = new Mail();
+
+                $mail_factory = $mail->factory('smtp', $params); // Print the parameters you are using to the page
+                $mail_factory->send($email, $headers, $body);
+
+
+              } else {
+                // fall back to normal mail function
+                mail($email, $subject, $body);
+              }
+
+        }
+    }
+
+    /**
      * Determines if it is a predefined question or not
      *
+     * @param int $question Question ID to check if it exists or not
      * @return boolean True if the client cert is there and is valid
      */
     private function isPredefinedQuestion($question) {
@@ -784,6 +1002,7 @@ EOD;
       return (bool) ($records_count > 0)? TRUE : FALSE;
 
     }
+
 
 }
 

@@ -20,6 +20,7 @@ Two-step authentication module for simpleSAMLphp using questions and answers and
  *        'initSecretQuestions' => array('Question 1', 'Question 2', 'Question 3'), // Optional - Initialise the db with secret questions
  *        'maxCodeAge' => 60 * 5, // Maximum age for a one time code. Defaults to 5 minutes
  *        'ssl.clientVerify' => false, // turned off by default, if turned on then other 2nd step verifications are bypassed
+ *        'maxFailLogin' => 5, // maximum amount of failed logins before locking the account
  *        'mail' => array('host' => 'ssl://smtp.gmail.com',
  *                        'port' => '465',
  *                        'from' => 'cloudfiles.notifications@mydomain.com',

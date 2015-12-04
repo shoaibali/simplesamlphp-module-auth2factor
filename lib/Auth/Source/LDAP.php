@@ -11,8 +11,30 @@
  * @package simpleSAMLphp
  * @version $Id$
  */
-class sspmod_auth2factor_Auth_Source_LDAP extends sspmod_ldap_Auth_Source_LDAP {
+class sspmod_auth2factor_Auth_Source_LDAP extends sspmod_core_Auth_UserPassBase {
 
+	/**
+	 * A LDAP configuration object.
+	 */
+	private $ldapConfig;
+
+
+	/**
+	 * Constructor for this authentication source.
+	 *
+	 * @param array $info  Information about this authentication source.
+	 * @param array $config  Configuration.
+	 */
+	public function __construct($info, $config) {
+		assert('is_array($info)');
+		assert('is_array($config)');
+
+		/* Call the parent constructor first, as required by the interface. */
+		parent::__construct($info, $config);
+
+		$this->ldapConfig = new sspmod_ldap_ConfigHelper($config,
+			'Authentication source ' . var_export($this->authId, TRUE));
+	}
 
 	/**
 	 * Attempt to log in using the given username and password.
@@ -39,7 +61,8 @@ class sspmod_auth2factor_Auth_Source_LDAP extends sspmod_ldap_Auth_Source_LDAP {
 
 		if (!$result) {
 			// increment failed login attempts
-			$qaLogin->failedLoginAttempt($username);
+			// TODO pass in $result as that will contain the attributes
+			$qaLogin->failedLoginAttempt($username,'login_count');
 		}
 
 		return $result;

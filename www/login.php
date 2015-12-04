@@ -46,6 +46,8 @@ $state['Attributes'] = $attributes;
 
 $uid = $attributes[ $as['uidField'] ][0];
 $email = $attributes[ $as['emailField'] ][0]; // todo fall back on uid if not set
+$givenName = $attributes[$as['givenName']][0];
+
 $state['UserID'] = $uid;
 $isRegistered = $qaLogin->isRegistered($uid);
 $isSSLVerified = $qaLogin->hasValidCert($uid);
@@ -191,7 +193,12 @@ if ($isRegistered && !$isSSLVerified && !$accountLocked) {
                             $errorCode = 'WRONGANSWER';
                             // only increment if the account is not already locked
                             if (!$qaLogin->isLocked($uid)) {
-                                $qaLogin->failedLoginAttempt($uid, 'answer_count');
+                                $qaLogin->failedLoginAttempt($uid, 'answer_count', array(
+                                                                                        'name' => $givenName,
+                                                                                        'mail' => $email,
+                                                                                        'uid' => $uid
+                                                                                    )
+                                );
                             }
 
                             $t->data['todo'] = 'loginANSWER';
@@ -209,7 +216,12 @@ if ($isRegistered && !$isSSLVerified && !$accountLocked) {
                         } else {
                           $errorCode = 'CODEXPIRED';
                           if (!$qaLogin->isLocked($uid)) {
-                            $qaLogin->failedLoginAttempt($uid, 'answer_count');
+                            $qaLogin->failedLoginAttempt($uid, 'answer_count', array(
+                                                                                        'name' => $givenName,
+                                                                                        'mail' => $email,
+                                                                                        'uid' => $uid
+                                                                                    )
+                            );
                           }
                         }
                    }
@@ -265,7 +277,12 @@ if ($isRegistered && !$isSSLVerified && !$accountLocked) {
                 $t->data['todo'] = 'loginCode';
                 $t->data['useSMS'] = true;
                 if (!$qaLogin->isLocked($uid)) {
-                    $qaLogin->failedLoginAttempt($uid, 'answer_count');
+                    $qaLogin->failedLoginAttempt($uid, 'answer_count', array(
+                                                                                        'name' => $givenName,
+                                                                                        'mail' => $email,
+                                                                                        'uid' => $uid
+                                                                                    )
+                    );
                 }
                 break;
             default:

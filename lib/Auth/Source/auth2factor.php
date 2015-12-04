@@ -103,6 +103,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
     private $mail;
     private $maxFailLogin;
     private $ssl_clientVerify;
+    private $notificationEmail;
 
     public $tfa_authencontextclassref;
 
@@ -155,6 +156,10 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
     if (array_key_exists('maxFailLogin', $config)) {
       $this->maxFailLogin = (int) $config['maxFailLogin'];
     }
+    if (array_key_exists('notificationEmail', $config)) {
+      $this->notificationEmail = $config['notificationEmail'];
+    }
+
     if (array_key_exists('ssl.clientVerify', $config)) {
       $this->ssl_clientVerify = (bool) $config['ssl.clientVerify'];
     } else {
@@ -788,7 +793,7 @@ EOD;
      * @param int $uid userid
      * @param  string $type Column name
      */
-    public function failedLoginAttempt($uid, $type = 'login_count') {
+    public function failedLoginAttempt($uid, $type, $attributes = array()) {
       // write it back to database the new count
       $q = $this->dbh->prepare("UPDATE ssp_user_2factor SET $type = $type + 1 WHERE uid=:uid LIMIT 1;");
       $result = $q->execute([':uid' => $uid]);
@@ -799,8 +804,9 @@ EOD;
       if ($this->maxFailLogin == ((int)$failedAttempts[0]['login_count'] + (int) $failedAttempts[0]['answer_count'])) {
         SimpleSAML_Logger::debug('User '.$uid.' has exceeded max failed login attempts of ' . $this->maxFailLogin);
         $this->lockAccount($uid);
+        $this->emailAdministrators($attributes);
+        $this->emailUser($attributes['uid'], $attributes['mail'], $attributes['name']);
       }
-
     }
 
     /**
@@ -858,6 +864,126 @@ EOD;
       $this->resetFailedLoginAttempts($uid, 'answer_count');
 
       SimpleSAML_Logger::debug('User '.$uid.' account is now locked');
+    }
+
+    private function emailAdministrators($attributes) {
+        if (!empty($this->notificationEmail) && !empty($attributes)) {
+          foreach($this->notificationEmail as $email) {
+
+             require_once('Mail.php');
+
+              $auth = false;
+              $username = '';
+              $password = '';
+
+              // only turn on mail smtp authentication if we have username and password
+              if(isset($this->mail["username"]) && isset($this->mail["password"])) {
+                $auth = true;
+                $username = $this->mail["username"];
+                $password = $this->mail["password"];
+              }
+
+                $useremail = $attributes['mail'];
+                $name = $attributes['name'];
+                $id = $attributes['uid'];
+                $subject = " Account locked notification";
+                $body = <<<EOD
+Dear Administrator,
+
+This is an email to let you know that account of name: '$name' , id: '$id' with email address : '$useremail'  has been locked.
+
+Yours truely,
+SSO System
+
+EOD;
+
+              if (isset($this->mail)) {
+                $params = array("host" => $this->mail["host"],
+                                "port" => $this->mail["port"],
+                                "auth" => $auth,
+                                "username" => $username,
+                                "password" => $password,
+                                "debug" => $this->mail["debug"],
+                                );
+
+                $headers = array(
+                            "To" => $email,
+                            "From" => $this->mail["from"],
+                            "Subject" => $this->mail["subject"]  . $subject,
+                          );
+
+                $mail = new Mail();
+
+                $mail_factory = $mail->factory('smtp', $params); // Print the parameters you are using to the page
+                $mail_factory->send($email, $headers, $body);
+
+
+              } else {
+                // fall back to normal mail function
+                mail($email, $subject, $body);
+              }
+
+          }
+        }
+    }
+
+    /* Email user of his/hesr account being locked */
+
+    private function emailUser($uid, $email, $name) {
+        if (isset($email)) {
+
+             require_once('Mail.php');
+
+              $auth = false;
+              $username = '';
+              $password = '';
+
+              // only turn on mail smtp authentication if we have username and password
+              if(isset($this->mail["username"]) && isset($this->mail["password"])) {
+                $auth = true;
+                $username = $this->mail["username"];
+                $password = $this->mail["password"];
+              }
+
+                $subject = " Account locked notification";
+                $body = <<<EOD
+Dear $name,
+
+This is an email to let you know that account '$uid' has been locked. Please contact system administrators.
+
+Regards,
+
+Security Team
+
+EOD;
+
+              if (isset($this->mail)) {
+                $params = array("host" => $this->mail["host"],
+                                "port" => $this->mail["port"],
+                                "auth" => $auth,
+                                "username" => $username,
+                                "password" => $password,
+                                "debug" => $this->mail["debug"],
+                                );
+
+                $headers = array(
+                            "To" => $email,
+                            "From" => $this->mail["from"],
+                            "Subject" => $this->mail["subject"]  . $subject,
+                          );
+
+                $mail = new Mail();
+
+                $mail_factory = $mail->factory('smtp', $params); // Print the parameters you are using to the page
+                $mail_factory->send($email, $headers, $body);
+
+
+              } else {
+                // fall back to normal mail function
+                mail($email, $subject, $body);
+              }
+
+        }
     }
 
     /**

@@ -5,7 +5,18 @@
     "descr_WRONGANSWER": {
         "en": "The answer you provided did not match. Try again, or contact the administrators!"
     },
-
+    "title_WRONGUSERPASS": {
+        "en": "Incorrect username or password"
+    },
+    "descr_WRONGUSERPASS": {
+        "en": "Unable to login, please check username or password."
+    },
+    "title_ACCOUNTLOCKED": {
+        "en": "Account locked!"
+    },
+    "descr_ACCOUNTLOCKED": {
+        "en": "This account has been locked due to too many invalid login attempts. Please contact the system administrators!"
+    },
     "title_INVALIDQUESTIONANSWERS": {
         "en": "Duplicate question or answers provided"
     },

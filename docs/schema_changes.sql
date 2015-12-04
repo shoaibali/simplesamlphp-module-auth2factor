@@ -16,3 +16,5 @@ MODIFY `user_question_id` int(11) NOT NULL AUTO_INCREMENT;
 
 ALTER TABLE `ssp_answers`  ADD `user_question_id` INT NOT NULL  AFTER `question_id`,  ADD   INDEX  (`user_question_id`) ;
 ALTER TABLE `ssp_user_questions` CHANGE `uid` `uid` VARCHAR(11) NOT NULL;
+
+ALTER TABLE `ssp_user_2factor` ADD `login_count` INT NOT NULL AFTER `last_code_stamp`, ADD `answer_count` INT NOT NULL AFTER `login_count`, ADD `locked` BOOLEAN NOT NULL DEFAULT FALSE AFTER `answer_count`;

@@ -852,6 +852,15 @@ EOD;
     }
 
    /**
+     * Returns configured maxFailedLogin count
+     *
+     * @return int maxFailLogin
+     */
+    public function getmaxFailLogin(){
+      return (int) $this->maxFailLogin;
+    }
+
+   /**
      * Locks the user account and resets failed attempts to zero
      *
      * @param int $uid userid

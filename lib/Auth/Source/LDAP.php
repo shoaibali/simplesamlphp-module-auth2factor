@@ -50,12 +50,29 @@ class sspmod_auth2factor_Auth_Source_LDAP extends sspmod_core_Auth_UserPassBase 
 
 		$qaLogin = SimpleSAML_Auth_Source::getById('auth2factor');
 
-		if ($qaLogin->isLocked($username)) {
-			throw new SimpleSAML_Error_Error('ACCOUNTLOCKED');
-		}
 
 		$result = $this->ldapConfig->login($username, $password, $sasl_args);
 
+		if (!$result) {
+            $failedAttempts = $qaLogin->getFailedAttempts($username);
+            $failCount = (int)$failedAttempts[0]['login_count'] + (int) $failedAttempts[0]['answer_count'];
+            $firstFailCount = $qaLogin->getmaxFailLogin() - 2;
+            $secondFailCount = $qaLogin->getmaxFailLogin() - 1;
+
+
+            if ($failCount == $firstFailCount){
+                throw new SimpleSAML_Error_Error('2FAILEDATTEMPTWARNING');
+            }
+
+            if ($failCount == $secondFailCount) {
+                throw new SimpleSAML_Error_Error('1FAILEDATTEMPTWARNING');
+            }
+
+            if ($qaLogin->isLocked($username)) {
+                throw new SimpleSAML_Error_Error('ACCOUNTLOCKED');
+            }
+
+		}
 		// make sure login counter is zero!
 		$qaLogin->resetFailedLoginAttempts($uid);
 

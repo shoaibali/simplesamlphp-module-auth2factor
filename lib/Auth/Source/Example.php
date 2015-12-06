@@ -90,9 +90,6 @@ class sspmod_auth2factor_Auth_Source_Example extends sspmod_core_Auth_UserPassBa
                 $uid = $this->users[$user]['uid'][0];
             }
         }
-        if ($qaLogin->isLocked($uid)) {
-            throw new SimpleSAML_Error_Error('ACCOUNTLOCKED');
-        }
 
         if (!array_key_exists($userpass, $this->users)) {
 
@@ -103,9 +100,29 @@ class sspmod_auth2factor_Auth_Source_Example extends sspmod_core_Auth_UserPassBa
                                                                 )
             );
 
+            $failedAttempts = $qaLogin->getFailedAttempts($uid);
+            $failCount = (int)$failedAttempts[0]['login_count'] + (int) $failedAttempts[0]['answer_count'];
+            $firstFailCount = $qaLogin->getmaxFailLogin() - 2;
+            $secondFailCount = $qaLogin->getmaxFailLogin() - 1;
+
+
+            if ($failCount == $firstFailCount){
+                throw new SimpleSAML_Error_Error('2FAILEDATTEMPTWARNING');
+            }
+
+            if ($failCount == $secondFailCount) {
+                throw new SimpleSAML_Error_Error('1FAILEDATTEMPTWARNING');
+            }
+
+            if ($qaLogin->isLocked($uid)) {
+                throw new SimpleSAML_Error_Error('ACCOUNTLOCKED');
+            }
+
             // both username and password are wrong
             throw new SimpleSAML_Error_Error('WRONGUSERPASS');
         }
+
+
 
         // make sure login counter is zero!
         $qaLogin->resetFailedLoginAttempts($uid);

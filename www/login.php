@@ -278,10 +278,10 @@ if ($isRegistered && !$isSSLVerified && !$accountLocked) {
                 $t->data['useSMS'] = true;
                 if (!$qaLogin->isLocked($uid)) {
                     $qaLogin->failedLoginAttempt($uid, 'answer_count', array(
-                                                                                        'name' => $givenName,
-                                                                                        'mail' => $email,
-                                                                                        'uid' => $uid
-                                                                                    )
+                                                                            'name' => $givenName,
+                                                                            'mail' => $email,
+                                                                            'uid' => $uid
+                                                                        )
                     );
                 }
                 break;

@@ -50,7 +50,7 @@ class sspmod_auth2factor_Auth_Source_Example extends sspmod_core_Auth_UserPassBa
             $password = $userpass[1];
 
             try {
-                $attributes = SimpleSAML_Utilities::parseAttributes($attributes);
+				$attributes = SimpleSAML\Utils\Attributes::normalizeAttributesArray($attributes);
             } catch(Exception $e) {
                 throw new Exception('Invalid attributes for user ' . $username .
                     ' in authentication source ' . $this->authId . ': ' .

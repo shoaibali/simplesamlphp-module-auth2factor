@@ -17,9 +17,12 @@
  *        'mailField' => 'email',
  *        'post_logout_url' => 'http://google.com', // URL to redirect to on logout. Optional
  *        'minAnswerLength' => 10, // Minimum answer length. Defaults to 0
+ *        'minQuestionLength' => 10, // Minimum answer length. Defaults to 0
  *        'singleUseCodeLength' => 10, // Minimum answer length. Defaults to 8
  *        'initSecretQuestions' => array('Question 1', 'Question 2', 'Question 3'), // Optional - Initialise the db with secret questions
  *        'maxCodeAge' => 60 * 5, // Maximum age for a one time code. Defaults to 5 minutes
+ *        'ssl.clientVerify' => false, // turned off by default, if turned on then other 2nd step verifications are bypassed
+ *        'maxFailLogin' => 5, // maximum amount of failed logins before locking the account
  *        'mail' => array('host' => 'ssl://smtp.gmail.com',
  *                        'port' => '465',
  *                        'from' => 'cloudfiles.notifications@mydomain.com',
@@ -47,10 +50,16 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
    */
   const ANSWERMINCHARLENGTH = 0;
 
-    /**
-     * Length of an SMS/Mail single use code
-     */
-    const SINGLEUSECODELENGTH = 8;
+  /**
+   * Default minimum length of secret answer required. Can be overridden in the config
+   */
+  const QUESTIONMINCHARLENGTH = 0;
+
+
+  /**
+   * Length of an SMS/Mail single use code
+   */
+  const SINGLEUSECODELENGTH = 8;
 
   /**
    * The key of the AuthId field in the state.
@@ -61,7 +70,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
      *   sstc-saml-loa-authncontext-profile-draft.odt
     */
 
-    const TFAAUTHNCONTEXTCLASSREF = 'urn:oasis:names:tc:SAML:2.0:post:ac:classes:nist-800-63:3';
+  const TFAAUTHNCONTEXTCLASSREF = 'urn:oasis:names:tc:SAML:2.0:post:ac:classes:nist-800-63:3';
 
     /**
      * 2 Factor type constants
@@ -69,6 +78,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
     const FACTOR_MAIL = 'mail';
     const FACTOR_SMS = 'sms';
     const FACTOR_QUESTION = 'question';
+    const FACTOR_SSL = 'ssl';
 
     /**
      * Default maximum code age
@@ -87,9 +97,13 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
     private $logoutURL;
     private $dbh;
     private $minAnswerLength;
+    private $minQuestionLength;
     private $singleUseCodeLength;
     private $maxCodeAge;
     private $mail;
+    private $maxFailLogin;
+    private $ssl_clientVerify;
+    private $notificationEmail;
 
     public $tfa_authencontextclassref;
 
@@ -125,17 +139,32 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
        $this->logoutURL = '/logout';
     }
     if (array_key_exists('minAnswerLength', $config)) {
-       $this->minAnswerLength = $config['minAnswerLength'];
+       $this->minAnswerLength = (int) $config['minAnswerLength'];
     } else {
        $this->minAnserLength = self::ANSWERMINCHARLENGTH;
     }
-
+    if (array_key_exists('minQuestionLength', $config)) {
+       $this->minQuestionLength = (int) $config['minQuestionLength'];
+    } else {
+       $this->minQuestionLength = self::QUESTIONMINCHARLENGTH;
+    }
     if (array_key_exists('singleUseCodeLength', $config)) {
-        $this->singleUseCodeLength = $config['singleUseCodeLength'];
+        $this->singleUseCodeLength = (int) $config['singleUseCodeLength'];
     } else {
         $this->singleUseCodeLength = self::SINGLEUSECODELENGTH;
     }
+    if (array_key_exists('maxFailLogin', $config)) {
+      $this->maxFailLogin = (int) $config['maxFailLogin'];
+    }
+    if (array_key_exists('notificationEmail', $config)) {
+      $this->notificationEmail = $config['notificationEmail'];
+    }
 
+    if (array_key_exists('ssl.clientVerify', $config)) {
+      $this->ssl_clientVerify = (bool) $config['ssl.clientVerify'];
+    } else {
+      $this->ssl_clientVerify = false;
+    }
     if (array_key_exists('maxCodeAge', $config)) {
         $this->maxCodeAge = $config['maxCodeAge'];
     } else {
@@ -176,6 +205,10 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
 
   public function getMinAnswerLength() {
         return $this->minAnswerLength;
+  }
+
+  public function getMinQuestionLength() {
+        return $this->minQuestionLength;
   }
 
   public function authenticate(&$state) {
@@ -236,7 +269,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
       $q = "CREATE TABLE IF NOT EXISTS ssp_user_2factor (
               uid VARCHAR(60) NOT NULL,
               PRIMARY KEY(uid),
-              challenge_type ENUM('".self::FACTOR_QUESTION."', '".self::FACTOR_SMS."', '".self::FACTOR_MAIL."') NOT NULL,
+              challenge_type ENUM('".self::FACTOR_QUESTION."', '".self::FACTOR_SMS."', '".self::FACTOR_MAIL."', '".self::FACTOR_SSL."') NOT NULL,
               last_code VARCHAR(10) NULL,
               last_code_stamp TIMESTAMP NULL,
               UNIQUE KEY uid (uid)
@@ -329,16 +362,75 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
      * @return bool
      */
     public function set2Factor($uid, $type, $code="") {
-        $q = $this->dbh->prepare("INSERT INTO ssp_user_2factor (uid, challenge_type, last_code, last_code_stamp)
-                                  VALUES (:uid,
-                                          :type,
-                                          :code,
-                                          NOW()) ON DUPLICATE KEY UPDATE challenge_type=:type, last_code=:code, last_code_stamp=NOW();");
+        $q = $this->dbh->prepare(
+          "INSERT INTO ssp_user_2factor (uid, challenge_type, last_code, last_code_stamp)
+            VALUES (:uid, :type, :code, NOW())
+            ON DUPLICATE KEY UPDATE challenge_type=:type, last_code=:code, last_code_stamp=NOW();");
 
         $result = $q->execute([':uid' => $uid, ':type' => $type, ':code' => $code]);
         SimpleSAML_Logger::debug('auth2factor: ' . $uid . ' set preferences: '. $type . ' code:' . $code);
 
         return $result;
+    }
+
+    public function sendQuestionResetEmail($attributes) {
+
+        require_once('Mail.php');
+
+        $auth = false;
+        $username = '';
+        $password = '';
+
+        // only turn on authentication if we have username and password
+        if(isset($this->mail["username"]) && isset($this->mail["password"])) {
+          $auth = true;
+          $username = $this->mail["username"];
+          $password = $this->mail["password"];
+        }
+
+          $name = $attributes['givenName'][0];
+          $email = $attributes['mail'][0];
+          $subject = " Secret questions reset notification";
+          $body = <<<EOD
+
+Dear $name,
+
+This is an email to let you know that your secret questions and answers have been reset.
+
+If this is something you did not initiate, kindly report this incident.
+
+Regards,
+
+Security Team
+
+EOD;
+
+        if (isset($this->mail)) {
+          $params = array("host" => $this->mail["host"],
+                          "port" => $this->mail["port"],
+                          "auth" => $auth,
+                          "username" => $username,
+                          "password" => $password,
+                          "debug" => $this->mail["debug"],
+                          );
+
+          $headers = array(
+                      "To" => $email,
+                      "From" => $this->mail["from"],
+                      "Subject" => $this->mail["subject"]  . $subject,
+                    );
+
+          $mail = new Mail();
+
+          $mail_factory = $mail->factory('smtp', $params); // Print the parameters you are using to the page
+          $mail_factory->send($email, $headers, $body);
+
+
+        } else {
+          // fall back to normal mail function
+          mail($email, $subject, $body);
+        }
+        SimpleSAML_Logger::debug('auth2factor: sending notification email of question reset to '. $attributes['uid'][0]);
     }
 
     public function sendMailCode($uid, $email) {
@@ -350,19 +442,30 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
         // sudo pear install Net_SMTP
         require_once('Mail.php');
 
+        $auth = false;
+        $username = '';
+        $password = '';
+
+        // only turn on authentication if we have username and password
+        if(isset($this->mail["username"]) && isset($this->mail["password"])) {
+          $auth = true;
+          $username = $this->mail["username"];
+          $password = $this->mail["password"];
+        }
         if (isset($this->mail)) {
           $params = array("host" => $this->mail["host"],
                           "port" => $this->mail["port"],
-                          "auth" => true,
-                          "username" => $this->mail["username"],
-                          "password" => $this->mail["password"],
+                          "auth" => $auth,
+                          "username" => $username,
+                          "password" => $password,
                           "debug" => $this->mail["debug"],
                           );
 
-          $headers = array("To" => $email,
-                            "From" => $this->mail["from"],
-                            "Subject" => $this->mail["subject"] . " Code = " . $code,
-                            );
+          $headers = array(
+                      "To" => $email,
+                      "From" => $this->mail["from"],
+                      "Subject" => $this->mail["subject"] . " Code = " . $code,
+                    );
 
           $mail = new Mail();
 
@@ -401,9 +504,10 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
     }
 
     public function hasMailCode($uid) {
-        $q = $this->dbh->prepare("SELECT uid, last_code, last_code_stamp FROM ssp_user_2factor WHERE uid=:uid ORDER BY last_code_stamp DESC;");
+        $q = $this->dbh->prepare("SELECT uid, last_code, last_code_stamp FROM ssp_user_2factor WHERE uid=:uid AND challenge_type = 'mail' ORDER BY last_code_stamp DESC;");
         $result = $q->execute([':uid' => $uid]);
         $rows = $q->fetchAll();
+
         if (count($rows) == 0) {
             SimpleSAML_Logger::debug('User '.$uid.' has no challenge');
             return false;
@@ -451,10 +555,19 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
     }
 
     public function getRandomQuestion($uid){
-        $q = $this->dbh->prepare("SELECT ssp_answers.question_id, ssp_questions.question_text FROM ssp_answers, ssp_questions WHERE ssp_answers.uid=:uid AND ssp_answers.question_id = ssp_questions.question_id;");
-        $result = $q->execute([':uid' => $uid]);
+        $preDefinedQuestionsQuery = $this->dbh->prepare("SELECT ssp_answers.question_id, ssp_questions.question_text FROM ssp_answers, ssp_questions WHERE ssp_answers.uid=:uid AND ssp_answers.question_id = ssp_questions.question_id;");
+        $pdqqr = $preDefinedQuestionsQuery->execute([':uid' => $uid]);
+        // also get any user defined questions
+        // TODO this could just be done in 1 query above
+        // I blame all these frameworks and ORMs I've been spoiled with (shoaib)
+        $userDefinedQuestionsQuery = $this->dbh->prepare("SELECT ssp_user_questions.user_question_id as question_id, ssp_user_questions.user_question as question_text FROM ssp_user_questions, ssp_answers WHERE ssp_user_questions.user_question_id = ssp_answers.user_question_id AND ssp_user_questions.uid=:uid");
+        $udqq = $userDefinedQuestionsQuery->execute([':uid' => $uid]);
 
-        $rows = $q->fetchAll();
+        $pdqq = $preDefinedQuestionsQuery->fetchAll();
+        $udqq = $userDefinedQuestionsQuery->fetchAll();
+
+        $rows = array_merge($pdqq, $udqq);
+
         // array_rand is quicker then SQL ORDER BY RAND()
         $random_question = $rows[array_rand($rows)];
         // TODO this question needs to be made persistent
@@ -474,7 +587,6 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
      * @param array $questions
      * @return bool
      */
-
     public function registerAnswers($uid,$answers, $questions) {
 
         // This check is probably not needed
@@ -500,6 +612,95 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
         return $result;
     }
 
+    /**
+     * Saves user submitted answers in to database
+     *
+     * @param int $uid
+     * @return boolean
+     */
+    public function unregisterQuestions($uid) {
+      $answers = $this->dbh->prepare("DELETE FROM ssp_answers WHERE uid=:uid");
+
+      $questions = $this->dbh->prepare("DELETE FROM ssp_user_questions WHERE uid=:uid");
+
+      $resetAnswers = $answers->execute([':uid' => $uid]);
+      $resetQuestions = $questions->execute([':uid' => $uid]);
+
+      if ($resetAnswers && $resetQuestions) {
+        // make sure the preference is still set to questions!
+        $this->set2Factor($uid, 'question');
+        SimpleSAML_Logger::debug('auth2factor: ' . $uid . ' has asked to reset their questions (including user defined)');
+        return true;
+      }
+
+      return false;
+    }
+
+    /**
+     * Saves user submitted questions/answers in to database
+     *
+     * @param int $uid
+     * @param array $answers
+     * @param array $questions
+     * @return bool
+     */
+    public function registerCustomAnswers($uid,$answers, $questions) {
+
+        // This check is probably not needed
+        if (empty($answers) || empty($questions) || empty($uid)) return FALSE;
+
+        $question_answers = array_combine($answers, $questions);
+
+        foreach ($question_answers as $answer => $question) {
+            // Check for user defined question
+            if (!$this->isPredefinedQuestion($question)) {
+              // insert user defined question in to database
+              $insertCustomQuestion = $this->dbh->prepare("INSERT INTO ssp_user_questions (uid, user_question) VALUES (:uid, :user_question)");
+              $r = $insertCustomQuestion->execute([':uid' => $uid, ':user_question' => $question]);
+              $user_question_id = $this->dbh->lastInsertId();
+
+
+              // Check that the answer meets the length requirements
+              if ((strlen($answer) >= $this->minAnswerLength)
+                  && (strlen($question) >= $this->minQuestionLength)
+                  && (int) $user_question_id > 0
+              ) {
+                  $answer_salt = $this->generateRandomString();
+                  $answer_hash = $this->calculateAnswerHash($answer, $this->site_salt, $answer_salt);
+                  $q = $this->dbh->prepare("INSERT INTO ssp_answers (answer_salt, answer_hash, user_question_id, uid) VALUES (:answer_salt, :answer_hash, :user_question_id, :uid)");
+
+
+                  $result = $q->execute([':answer_salt' => $answer_salt,
+                                         ':answer_hash' => $answer_hash,
+                                         ':user_question_id' => $user_question_id,
+                                         ':uid' => $uid]);
+                  SimpleSAML_Logger::debug('auth2factor: ' . $uid . ' registered his answer: '. $answer . ' for custom_question_id:' . $user_question_id);
+              } else {
+                  $result = FALSE;
+              }
+
+
+            } else { // dealing with pre-defined questions below
+
+              // Check that the answer meets the length requirements
+              if ((strlen($answer) >= $this->minAnswerLength) && (int) $question > 0) {
+                  $answer_salt = $this->generateRandomString();
+                  $answer_hash = $this->calculateAnswerHash($answer, $this->site_salt, $answer_salt);
+                  $q = $this->dbh->prepare("INSERT INTO ssp_answers (answer_salt, answer_hash, question_id, uid) VALUES (:answer_salt, :answer_hash, :question, :uid)");
+
+
+                  $result = $q->execute([':answer_salt' => $answer_salt,
+                                         ':answer_hash' => $answer_hash,
+                                         ':question' => $question,
+                                         ':uid' => $uid]);
+                  SimpleSAML_Logger::debug('auth2factor: ' . $uid . ' registered his answer: '. $answer . ' for question_id:' . $question);
+              } else {
+                  $result = FALSE;
+              }
+            }
+        }
+        return $result;
+    }
 
     /**
      * Verify user submitted answer against their question
@@ -514,7 +715,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
         $match = FALSE;
 
         foreach($answers as $a){
-          if ($question_id == $a["question_id"]) {
+          if ($question_id == $a["question_id"] || $question_id == $a["user_question_id"]) {
                 $answer_salt = $a['answer_salt'];
                 $submitted_hash = $this->calculateAnswerHash($answer, $this->site_salt, $answer_salt);
                 if ($submitted_hash == $a["answer_hash"]) {
@@ -531,6 +732,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
             $q = $this->dbh->prepare("SELECT uid, last_code, last_code_stamp FROM ssp_user_2factor WHERE uid=:uid ORDER BY last_code_stamp DESC;");
             $result = $q->execute([':uid' => $uid]);
             $rows = $q->fetchAll();
+
             if ($rows[0]['last_code'] === trim($answer)) {
                 SimpleSAML_Logger::debug('User '.$uid.' passed good code');
                 $q = $this->dbh->prepare("UPDATE ssp_user_2factor SET last_code=NULL,last_code_stamp=NULL WHERE uid=:uid;");
@@ -564,23 +766,252 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
      *
      * @return boolean True if the client cert is there and is valid
      */
-    function hasValidCert()
-    {
-        if (!isset($_SERVER['SSL_CLIENT_M_SERIAL'])
-            || !isset($_SERVER['SSL_CLIENT_V_END'])
-            || !isset($_SERVER['SSL_CLIENT_VERIFY'])
-            || $_SERVER['SSL_CLIENT_VERIFY'] !== 'SUCCESS'
-            || !isset($_SERVER['SSL_CLIENT_I_DN'])
-        ) {
-            return false;
-        }
+    public function hasValidCert($uid) {
+      // always return false if SSL client cert verification turned off
+      return $this->ssl_clientVerify;
 
-        if ($_SERVER['SSL_CLIENT_V_REMAIN'] <= 0) {
-            return false;
-        }
+      if (!isset($_SERVER['SSL_CLIENT_M_SERIAL'])
+          || !isset($_SERVER['SSL_CLIENT_V_END'])
+          || !isset($_SERVER['SSL_CLIENT_VERIFY'])
+          || $_SERVER['SSL_CLIENT_VERIFY'] !== 'SUCCESS'
+          || !isset($_SERVER['SSL_CLIENT_I_DN'])
+      ) {
+          return false;
+      }
 
-        return true;
+      if ($_SERVER['SSL_CLIENT_V_REMAIN'] <= 0) {
+          return false;
+      }
+      $this->set2Factor($uid, self::FACTOR_SSL);
+      return true;
     }
+
+    /**
+     * Increments failed login attempt for
+     * login, mail code and secret questions
+     *
+     * @param int $uid userid
+     * @param  string $type Column name
+     */
+    public function failedLoginAttempt($uid, $type, $attributes = array()) {
+      // write it back to database the new count
+      $q = $this->dbh->prepare("UPDATE ssp_user_2factor SET $type = $type + 1 WHERE uid=:uid LIMIT 1;");
+      $result = $q->execute([':uid' => $uid]);
+      SimpleSAML_Logger::debug('User '.$uid.' failed login attempt with ' . $type);
+      // lock the account!
+      $failedAttempts = $this->getFailedAttempts($uid);
+
+      if ($this->maxFailLogin == ((int)$failedAttempts[0]['login_count'] + (int) $failedAttempts[0]['answer_count'])) {
+        SimpleSAML_Logger::debug('User '.$uid.' has exceeded max failed login attempts of ' . $this->maxFailLogin);
+        $this->lockAccount($uid);
+        $this->emailAdministrators($attributes);
+        $this->emailUser($attributes['uid'], $attributes['mail'], $attributes['name']);
+      }
+    }
+
+    /**
+     * Returns a count of failed attempts
+     * using username/password or secret question or mailcode
+     *
+     * @param int $uid userid
+     * @return  array $count
+     */
+    public function getFailedAttempts($uid) {
+
+      $q = $this->dbh->prepare("SELECT login_count, answer_count FROM ssp_user_2factor WHERE uid=:uid LIMIT 1;");
+      $result = $q->execute([':uid' => $uid]);
+      $rows = $q->fetchAll();
+
+      return $rows;
+    }
+
+   /**
+     * Reset login attempts back to zero
+     *
+     * @param int $uid userid
+     * @param  string $type Column name
+     */
+    public function resetFailedLoginAttempts($uid, $type = 'login_count') {
+      $q = $this->dbh->prepare("UPDATE ssp_user_2factor SET $type = 0 WHERE uid=:uid LIMIT 1;");
+      $result = $q->execute([':uid' => $uid]);
+      SimpleSAML_Logger::debug('User '.$uid.' reset login attempts back to zero');
+    }
+
+   /**
+     * Checks if user account is locked or not
+     *
+     * @param int $uid userid
+     * @param boolean locked
+     */
+    public function isLocked($uid) {
+      $q = $this->dbh->prepare("SELECT locked FROM ssp_user_2factor WHERE uid=:uid LIMIT 1;");
+      $result = $q->execute([':uid' => $uid]);
+      $rows = $q->fetchAll();
+
+      return (bool) $rows[0]['locked'];
+    }
+
+   /**
+     * Returns configured maxFailedLogin count
+     *
+     * @return int maxFailLogin
+     */
+    public function getmaxFailLogin(){
+      return (int) $this->maxFailLogin;
+    }
+
+   /**
+     * Locks the user account and resets failed attempts to zero
+     *
+     * @param int $uid userid
+     */
+    private function lockAccount($uid) {
+      $q = $this->dbh->prepare("UPDATE ssp_user_2factor SET locked = 1 WHERE uid=:uid LIMIT 1;");
+      $result = $q->execute([':uid' => $uid]);
+
+      $this->resetFailedLoginAttempts($uid, 'login_count');
+      $this->resetFailedLoginAttempts($uid, 'answer_count');
+
+      SimpleSAML_Logger::debug('User '.$uid.' account is now locked');
+    }
+
+    private function emailAdministrators($attributes) {
+        if (!empty($this->notificationEmail) && !empty($attributes)) {
+          foreach($this->notificationEmail as $email) {
+
+             require_once('Mail.php');
+
+              $auth = false;
+              $username = '';
+              $password = '';
+
+              // only turn on mail smtp authentication if we have username and password
+              if(isset($this->mail["username"]) && isset($this->mail["password"])) {
+                $auth = true;
+                $username = $this->mail["username"];
+                $password = $this->mail["password"];
+              }
+
+                $useremail = $attributes['mail'];
+                $name = $attributes['name'];
+                $id = $attributes['uid'];
+                $subject = " Account locked notification";
+                $body = <<<EOD
+Dear Administrator,
+
+This is an email to let you know that account of name: '$name' , id: '$id' with email address : '$useremail'  has been locked.
+
+Yours truely,
+SSO System
+
+EOD;
+
+              if (isset($this->mail)) {
+                $params = array("host" => $this->mail["host"],
+                                "port" => $this->mail["port"],
+                                "auth" => $auth,
+                                "username" => $username,
+                                "password" => $password,
+                                "debug" => $this->mail["debug"],
+                                );
+
+                $headers = array(
+                            "To" => $email,
+                            "From" => $this->mail["from"],
+                            "Subject" => $this->mail["subject"]  . $subject,
+                          );
+
+                $mail = new Mail();
+
+                $mail_factory = $mail->factory('smtp', $params); // Print the parameters you are using to the page
+                $mail_factory->send($email, $headers, $body);
+
+
+              } else {
+                // fall back to normal mail function
+                mail($email, $subject, $body);
+              }
+
+          }
+        }
+    }
+
+    /* Email user of his/hesr account being locked */
+
+    private function emailUser($uid, $email, $name) {
+        if (isset($email)) {
+
+             require_once('Mail.php');
+
+              $auth = false;
+              $username = '';
+              $password = '';
+
+              // only turn on mail smtp authentication if we have username and password
+              if(isset($this->mail["username"]) && isset($this->mail["password"])) {
+                $auth = true;
+                $username = $this->mail["username"];
+                $password = $this->mail["password"];
+              }
+
+                $subject = " Account locked notification";
+                $body = <<<EOD
+Dear $name,
+
+This is an email to let you know that account '$uid' has been locked. Please contact system administrators.
+
+Regards,
+
+Security Team
+
+EOD;
+
+              if (isset($this->mail)) {
+                $params = array("host" => $this->mail["host"],
+                                "port" => $this->mail["port"],
+                                "auth" => $auth,
+                                "username" => $username,
+                                "password" => $password,
+                                "debug" => $this->mail["debug"],
+                                );
+
+                $headers = array(
+                            "To" => $email,
+                            "From" => $this->mail["from"],
+                            "Subject" => $this->mail["subject"]  . $subject,
+                          );
+
+                $mail = new Mail();
+
+                $mail_factory = $mail->factory('smtp', $params); // Print the parameters you are using to the page
+                $mail_factory->send($email, $headers, $body);
+
+
+              } else {
+                // fall back to normal mail function
+                mail($email, $subject, $body);
+              }
+
+        }
+    }
+
+    /**
+     * Determines if it is a predefined question or not
+     *
+     * @param int $question Question ID to check if it exists or not
+     * @return boolean True if the client cert is there and is valid
+     */
+    private function isPredefinedQuestion($question) {
+
+      $q = $this->dbh->prepare("SELECT COUNT(*) as predefined_count FROM ssp_questions WHERE question_id = :question_id LIMIT 1;");
+
+      $result = $q->execute([':question_id' => $question]);
+      $rows = $q->fetchAll();
+      $records_count =  $rows[0]["predefined_count"];
+      return (bool) ($records_count > 0)? TRUE : FALSE;
+
+    }
+
 
 }
 

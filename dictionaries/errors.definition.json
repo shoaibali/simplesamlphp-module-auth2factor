@@ -5,7 +5,30 @@
     "descr_WRONGANSWER": {
         "en": "The answer you provided did not match. Try again, or contact the administrators!"
     },
-
+    "title_WRONGUSERPASS": {
+        "en": "Incorrect username or password"
+    },
+    "descr_WRONGUSERPASS": {
+        "en": "Unable to login, please check username or password."
+    },
+    "title_ACCOUNTLOCKED": {
+        "en": "Account locked!"
+    },
+    "descr_ACCOUNTLOCKED": {
+        "en": "This account has been locked due to too many invalid login attempts. Please contact  IT Client services helpdesk to unlock the account!"
+    },
+    "title_2FAILEDATTEMPTWARNING": {
+        "en": "2 more attempts left!"
+    },
+    "descr_2FAILEDATTEMPTWARNING": {
+        "en": "Account will be locked after 2 more failed attempts."
+    },
+    "title_1FAILEDATTEMPTWARNING": {
+        "en": "1 more attempts left!"
+    },
+    "descr_1FAILEDATTEMPTWARNING": {
+        "en": "Acount will be locked after 1 more failed attempt."
+    },
     "title_INVALIDQUESTIONANSWERS": {
         "en": "Duplicate question or answers provided"
     },

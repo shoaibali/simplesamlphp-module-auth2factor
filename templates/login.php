@@ -62,11 +62,13 @@ $this->data['header'] = $this->t('{auth2factor:login:authentication}');
             if(!empty($this->data['questions'])) {
                 for($i=1;$i <=3; $i++){
                     $answer_value = "";
+                    $question_value = "";
                     if(isset($_POST["answers"]) && isset($_POST["questions"])){
                         $answer_value = $_POST["answers"][$i-1];
                         $selected_qid = $_POST["questions"][$i-1];
+                        $question_value = $_POST["questions"][$i-1];
                     }
-                        echo '<select name="questions[]" required="requred">';
+                     echo '<select id="question_'. $i .'" class="form-control small questions" name="questions[]" required="requred">';
                         echo '<option value="0">--- select question ---</option>';
 
                     foreach($this->data['questions'] as $question => $q) {
@@ -78,7 +80,12 @@ $this->data['header'] = $this->t('{auth2factor:login:authentication}');
                         }
                         echo ('<option value="'.$q['question_id'].'"'. $selected . '>'.$q['question_text'].'</option>');
                     }
+                    echo '<option class="custom" value="question_'.$i.'">Write your own question ...</option>';
                     echo '</select>';
+
+                    echo '<input style="display: none;" autocomplete="off" autocorrect="off" autocapitalize="off" class="form-control small question_'.$i.'" placeholder="Question" name="questions[]" value="'.$question_value. '" type="text" pattern=".{'.$this->data['minQuestionLength'].',}"';
+                    echo ' title="Question must be at least '.$this->data['minQuestionLength'].' characters long" required="requred">';
+
                     echo 'Answer: <input name="answers[]" value="" type="text" pattern=".{'.$this->data['minAnswerLength'].',}"';
                     echo 'title="Answers must be at least '.$this->data['minAnswerLength'].' characters long" required="requred">';
                     echo '<br/><br/>';
@@ -104,6 +111,7 @@ $this->data['header'] = $this->t('{auth2factor:login:authentication}');
         <input id="answer" class="yubifield" type="text" tabindex="1" name="answer" />
         <input id="submit" class="submitbutton" type="submit" tabindex="2" name="submit" value="<?php echo $this->t('{auth2factor:login:next}')?>"/>
         <input class="submitbutton" type="submit" tabindex="3" name="submit" value="<?php echo $this->t('{auth2factor:login:switchtomail}')?>" />
+        <input id="resetquestions" class="submitbutton" type="submit" tabindex="4" name="submit" value="<?php echo $this->t('{auth2factor:login:resetquestions}')?>"/>
         </p>
     </div>
     <?php elseif ( $this->data['todo'] == 'loginCode' ) : ?>
@@ -116,7 +124,7 @@ $this->data['header'] = $this->t('{auth2factor:login:authentication}');
         <input id="answer" class="yubifield" type="text" tabindex="1" name="answer" />
         <input id="submit" class="submitbutton" type="submit" tabindex="2" name="submit" value="<?php echo $this->t('{auth2factor:login:next}')?>"/>
         <input class="submitbutton" type="submit" tabindex="3" name="submit" value="<?php echo $this->t('{auth2factor:login:switchtoq}')?>" />
-        <input id="resent" class="submitbutton" type="submit" tabindex="2" name="submit" value="<?php echo $this->t('{auth2factor:login:resend}')?>"/>
+        <input class="submitbutton" type="submit" tabindex="4" name="submit" value="<?php echo $this->t('{auth2factor:login:switchtoq}')?>" />
         </p>
     </div>
     <?php endif ; ?>
@@ -128,6 +136,17 @@ $this->data['header'] = $this->t('{auth2factor:login:authentication}');
     ?>
 
 </form>
+
+<script type="text/javascript">
+    $( ".questions" ).change(function() {
+         $('.'+$(this).attr('id')).prop('required',false);
+        $('.'+$(this).attr('id')).hide();
+        if ($(this).find('option:selected').attr('class') == 'custom') {
+            $('.'+$(this).val()).show();
+            $('.'+$(this).val()).prop('required',true);;
+        }
+    });
+</script>
 
 <div id="keyboard"></div>
 

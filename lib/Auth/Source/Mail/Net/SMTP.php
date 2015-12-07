@@ -185,7 +185,7 @@ class Net_SMTP
         $this->_socket_options = $socket_options;
         $this->_timeout = $timeout;
 
-        /* Include the Auth_SASL package.  If the package is available, we 
+        /* Include the Auth_SASL package.  If the package is available, we
          * enable the authentication methods that depend upon it. */
         if (@include_once 'Auth/SASL.php') {
             $this->setAuthMethod('CRAM-MD5', array($this, '_authCram_MD5'));
@@ -260,9 +260,9 @@ class Net_SMTP
         $this->_debug("Send: $data");
 
         $result = $this->_socket->write($data);
-        if (!$result || PEAR::isError($result)) {
+        if (!$result || @PEAR::isError($result)) {
             $msg = ($result) ? $result->getMessage() : "unknown error";
-            return PEAR::raiseError("Failed to write to socket: $msg",
+            return @PEAR::raiseError("Failed to write to socket: $msg",
                                     null, PEAR_ERROR_RETURN);
         }
 
@@ -415,7 +415,7 @@ class Net_SMTP
     /**
      * Return the SMTP server's greeting string.
      *
-     * @return  string  A string containing the greeting string, or null if a 
+     * @return  string  A string containing the greeting string, or null if a
      *                  greeting has not been received.
      *
      * @access  public
@@ -451,9 +451,9 @@ class Net_SMTP
         }
 
         /*
-         * Now that we're connected, reset the socket's timeout value for 
-         * future I/O operations.  This allows us to have different socket 
-         * timeout values for the initial connection (our $timeout parameter) 
+         * Now that we're connected, reset the socket's timeout value for
+         * future I/O operations.  This allows us to have different socket
+         * timeout values for the initial connection (our $timeout parameter)
          * and all other socket operations.
          */
         if ($this->_timeout > 0) {
@@ -486,14 +486,14 @@ class Net_SMTP
      */
     function disconnect()
     {
-        if (PEAR::isError($error = $this->_put('QUIT'))) {
+        if (@PEAR::isError($error = $this->_put('QUIT'))) {
             return $error;
         }
-        if (PEAR::isError($error = $this->_parseResponse(221))) {
+        if (@PEAR::isError($error = $this->_parseResponse(221))) {
             return $error;
         }
-        if (PEAR::isError($error = $this->_socket->disconnect())) {
-            return PEAR::raiseError('Failed to disconnect socket: ' .
+        if (@PEAR::isError($error = $this->_socket->disconnect())) {
+            return @PEAR::raiseError('Failed to disconnect socket: ' .
                                     $error->getMessage());
         }
 
@@ -512,16 +512,16 @@ class Net_SMTP
      */
     function _negotiate()
     {
-        if (PEAR::isError($error = $this->_put('EHLO', $this->localhost))) {
+        if (@PEAR::isError($error = $this->_put('EHLO', $this->localhost))) {
             return $error;
         }
 
-        if (PEAR::isError($this->_parseResponse(250))) {
+        if (@PEAR::isError($this->_parseResponse(250))) {
             /* If the EHLO failed, try the simpler HELO command. */
-            if (PEAR::isError($error = $this->_put('HELO', $this->localhost))) {
+            if (@PEAR::isError($error = $this->_put('HELO', $this->localhost))) {
                 return $error;
             }
-            if (PEAR::isError($this->_parseResponse(250))) {
+            if (@PEAR::isError($this->_parseResponse(250))) {
                 return PEAR::raiseError('HELO was not accepted: ', $this->_code,
                                         PEAR_ERROR_RETURN);
             }
@@ -586,21 +586,21 @@ class Net_SMTP
     function auth($uid, $pwd , $method = '', $tls = true, $authz = '')
     {
         /* We can only attempt a TLS connection if one has been requested,
-         * we're running PHP 5.1.0 or later, have access to the OpenSSL 
-         * extension, are connected to an SMTP server which supports the 
-         * STARTTLS extension, and aren't already connected over a secure 
+         * we're running PHP 5.1.0 or later, have access to the OpenSSL
+         * extension, are connected to an SMTP server which supports the
+         * STARTTLS extension, and aren't already connected over a secure
          * (SSL) socket connection. */
         if ($tls && version_compare(PHP_VERSION, '5.1.0', '>=') &&
             extension_loaded('openssl') && isset($this->_esmtp['STARTTLS']) &&
             strncasecmp($this->host, 'ssl://', 6) !== 0) {
             /* Start the TLS connection attempt. */
-            if (PEAR::isError($result = $this->_put('STARTTLS'))) {
+            if (@PEAR::isError($result = $this->_put('STARTTLS'))) {
                 return $result;
             }
-            if (PEAR::isError($result = $this->_parseResponse(220))) {
+            if (@PEAR::isError($result = $this->_parseResponse(220))) {
                 return $result;
             }
-            if (PEAR::isError($result = $this->_socket->enableCrypto(true, STREAM_CRYPTO_METHOD_TLS_CLIENT))) {
+            if (@PEAR::isError($result = $this->_socket->enableCrypto(true, STREAM_CRYPTO_METHOD_TLS_CLIENT))) {
                 return $result;
             } elseif ($result !== true) {
                 return PEAR::raiseError('STARTTLS failed');
@@ -612,29 +612,29 @@ class Net_SMTP
         }
 
         if (empty($this->_esmtp['AUTH'])) {
-            return PEAR::raiseError('SMTP server does not support authentication');
+            return @PEAR::raiseError('SMTP server does not support authentication');
         }
 
         /* If no method has been specified, get the name of the best
          * supported method advertised by the SMTP server. */
         if (empty($method)) {
-            if (PEAR::isError($method = $this->_getBestAuthMethod())) {
+            if (@PEAR::isError($method = $this->_getBestAuthMethod())) {
                 /* Return the PEAR_Error object from _getBestAuthMethod(). */
                 return $method;
             }
         } else {
             $method = strtoupper($method);
             if (!array_key_exists($method, $this->auth_methods)) {
-                return PEAR::raiseError("$method is not a supported authentication method");
+                return @PEAR::raiseError("$method is not a supported authentication method");
             }
         }
 
         if (!isset($this->auth_methods[$method])) {
-            return PEAR::raiseError("$method is not a supported authentication method");
+            return @PEAR::raiseError("$method is not a supported authentication method");
         }
 
         if (!is_callable($this->auth_methods[$method], false)) {
-            return PEAR::raiseError("$method authentication method cannot be called");
+            return @PEAR::raiseError("$method authentication method cannot be called");
         }
 
         if (is_array($this->auth_methods[$method])) {
@@ -646,7 +646,7 @@ class Net_SMTP
          }
 
         /* If an error was encountered, return the PEAR_Error object. */
-        if (PEAR::isError($result)) {
+        if (@PEAR::isError($result)) {
             return $result;
         }
 
@@ -657,10 +657,10 @@ class Net_SMTP
      * Add a new authentication method.
      *
      * @param string    The authentication method name (e.g. 'PLAIN')
-     * @param mixed     The authentication callback (given as the name of a 
+     * @param mixed     The authentication callback (given as the name of a
      *                  function or as an (object, method name) array).
-     * @param bool      Should the new method be prepended to the list of 
-     *                  available methods?  This is the default behavior, 
+     * @param bool      Should the new method be prepended to the list of
+     *                  available methods?  This is the default behavior,
      *                  giving the new method the highest priority.
      *
      * @return  mixed   True on success or a PEAR_Error object on failure.
@@ -671,16 +671,16 @@ class Net_SMTP
     function setAuthMethod($name, $callback, $prepend = true)
     {
         if (!is_string($name)) {
-            return PEAR::raiseError('Method name is not a string');
+            return @PEAR::raiseError('Method name is not a string');
         }
 
         if (!is_string($callback) && !is_array($callback)) {
-            return PEAR::raiseError('Method callback must be string or array');
+            return @PEAR::raiseError('Method callback must be string or array');
         }
 
         if (is_array($callback)) {
             if (!is_object($callback[0]) || !is_string($callback[1]))
-                return PEAR::raiseError('Bad mMethod callback array');
+                return @PEAR::raiseError('Bad mMethod callback array');
         }
 
         if ($prepend) {
@@ -725,22 +725,22 @@ class Net_SMTP
                                                        $this->host, "smtp",
                                                        $authz));
 
-        if (PEAR::isError($error = $this->_put($auth_str))) {
+        if (@PEAR::isError($error = $this->_put($auth_str))) {
             return $error;
         }
         /* 334: Continue authentication request */
-        if (PEAR::isError($error = $this->_parseResponse(334))) {
+        if (@PEAR::isError($error = $this->_parseResponse(334))) {
             return $error;
         }
 
         /* We don't use the protocol's third step because SMTP doesn't
          * allow subsequent authentication, so we just silently ignore
          * it. */
-        if (PEAR::isError($error = $this->_put(''))) {
+        if (@PEAR::isError($error = $this->_put(''))) {
             return $error;
         }
         /* 235: Authentication successful */
-        if (PEAR::isError($error = $this->_parseResponse(235))) {
+        if (@PEAR::isError($error = $this->_parseResponse(235))) {
             return $error;
         }
     }
@@ -759,11 +759,11 @@ class Net_SMTP
      */
     function _authCRAM_MD5($uid, $pwd, $authz = '')
     {
-        if (PEAR::isError($error = $this->_put('AUTH', 'CRAM-MD5'))) {
+        if (@PEAR::isError($error = $this->_put('AUTH', 'CRAM-MD5'))) {
             return $error;
         }
         /* 334: Continue authentication request */
-        if (PEAR::isError($error = $this->_parseResponse(334))) {
+        if (@PEAR::isError($error = $this->_parseResponse(334))) {
             /* 503: Error: already authenticated */
             if ($this->_code === 503) {
                 return true;
@@ -775,12 +775,12 @@ class Net_SMTP
         $cram = &Auth_SASL::factory('cram-md5');
         $auth_str = base64_encode($cram->getResponse($uid, $pwd, $challenge));
 
-        if (PEAR::isError($error = $this->_put($auth_str))) {
+        if (@PEAR::isError($error = $this->_put($auth_str))) {
             return $error;
         }
 
         /* 235: Authentication successful */
-        if (PEAR::isError($error = $this->_parseResponse(235))) {
+        if (@PEAR::isError($error = $this->_parseResponse(235))) {
             return $error;
         }
     }
@@ -799,11 +799,11 @@ class Net_SMTP
      */
     function _authLogin($uid, $pwd, $authz = '')
     {
-        if (PEAR::isError($error = $this->_put('AUTH', 'LOGIN'))) {
+        if (@PEAR::isError($error = $this->_put('AUTH', 'LOGIN'))) {
             return $error;
         }
         /* 334: Continue authentication request */
-        if (PEAR::isError($error = $this->_parseResponse(334))) {
+        if (@PEAR::isError($error = $this->_parseResponse(334))) {
             /* 503: Error: already authenticated */
             if ($this->_code === 503) {
                 return true;
@@ -811,20 +811,20 @@ class Net_SMTP
             return $error;
         }
 
-        if (PEAR::isError($error = $this->_put(base64_encode($uid)))) {
+        if (@PEAR::isError($error = $this->_put(base64_encode($uid)))) {
             return $error;
         }
         /* 334: Continue authentication request */
-        if (PEAR::isError($error = $this->_parseResponse(334))) {
+        if (@PEAR::isError($error = $this->_parseResponse(334))) {
             return $error;
         }
 
-        if (PEAR::isError($error = $this->_put(base64_encode($pwd)))) {
+        if (@PEAR::isError($error = $this->_put(base64_encode($pwd)))) {
             return $error;
         }
 
         /* 235: Authentication successful */
-        if (PEAR::isError($error = $this->_parseResponse(235))) {
+        if (@PEAR::isError($error = $this->_parseResponse(235))) {
             return $error;
         }
 
@@ -845,11 +845,11 @@ class Net_SMTP
      */
     function _authPlain($uid, $pwd, $authz = '')
     {
-        if (PEAR::isError($error = $this->_put('AUTH', 'PLAIN'))) {
+        if (@PEAR::isError($error = $this->_put('AUTH', 'PLAIN'))) {
             return $error;
         }
         /* 334: Continue authentication request */
-        if (PEAR::isError($error = $this->_parseResponse(334))) {
+        if (@PEAR::isError($error = $this->_parseResponse(334))) {
             /* 503: Error: already authenticated */
             if ($this->_code === 503) {
                 return true;
@@ -859,12 +859,12 @@ class Net_SMTP
 
         $auth_str = base64_encode($authz . chr(0) . $uid . chr(0) . $pwd);
 
-        if (PEAR::isError($error = $this->_put($auth_str))) {
+        if (@PEAR::isError($error = $this->_put($auth_str))) {
             return $error;
         }
 
         /* 235: Authentication successful */
-        if (PEAR::isError($error = $this->_parseResponse(235))) {
+        if (@PEAR::isError($error = $this->_parseResponse(235))) {
             return $error;
         }
 
@@ -883,10 +883,10 @@ class Net_SMTP
      */
     function helo($domain)
     {
-        if (PEAR::isError($error = $this->_put('HELO', $domain))) {
+        if (@PEAR::isError($error = $this->_put('HELO', $domain))) {
             return $error;
         }
-        if (PEAR::isError($error = $this->_parseResponse(250))) {
+        if (@PEAR::isError($error = $this->_parseResponse(250))) {
             return $error;
         }
 
@@ -942,10 +942,10 @@ class Net_SMTP
             $args .= ' ' . $params;
         }
 
-        if (PEAR::isError($error = $this->_put('MAIL', $args))) {
+        if (@PEAR::isError($error = $this->_put('MAIL', $args))) {
             return $error;
         }
-        if (PEAR::isError($error = $this->_parseResponse(250, $this->pipelining))) {
+        if (@PEAR::isError($error = $this->_parseResponse(250, $this->pipelining))) {
             return $error;
         }
 
@@ -972,10 +972,10 @@ class Net_SMTP
             $args .= ' ' . $params;
         }
 
-        if (PEAR::isError($error = $this->_put('RCPT', $args))) {
+        if (@PEAR::isError($error = $this->_put('RCPT', $args))) {
             return $error;
         }
-        if (PEAR::isError($error = $this->_parseResponse(array(250, 251), $this->pipelining))) {
+        if (@PEAR::isError($error = $this->_parseResponse(array(250, 251), $this->pipelining))) {
             return $error;
         }
 
@@ -1022,7 +1022,7 @@ class Net_SMTP
     {
         /* Verify that $data is a supported type. */
         if (!is_string($data) && !is_resource($data)) {
-            return PEAR::raiseError('Expected a string or file resource');
+            return @PEAR::raiseError('Expected a string or file resource');
         }
 
         /* Start by considering the size of the optional headers string.  We
@@ -1047,29 +1047,29 @@ class Net_SMTP
         $limit = (isset($this->_esmtp['SIZE'])) ? $this->_esmtp['SIZE'] : 0;
         if ($limit > 0 && $size >= $limit) {
             $this->disconnect();
-            return PEAR::raiseError('Message size exceeds server limit');
+            return @PEAR::raiseError('Message size exceeds server limit');
         }
 
         /* Initiate the DATA command. */
-        if (PEAR::isError($error = $this->_put('DATA'))) {
+        if (@PEAR::isError($error = $this->_put('DATA'))) {
             return $error;
         }
-        if (PEAR::isError($error = $this->_parseResponse(354))) {
+        if (@PEAR::isError($error = $this->_parseResponse(354))) {
             return $error;
         }
 
         /* If we have a separate headers string, send it first. */
         if (!is_null($headers)) {
             $this->quotedata($headers);
-            if (PEAR::isError($result = $this->_send($headers . "\r\n\r\n"))) {
+            if (@PEAR::isError($result = $this->_send($headers . "\r\n\r\n"))) {
                 return $result;
             }
         }
 
         /* Now we can send the message body data. */
         if (is_resource($data)) {
-            /* Stream the contents of the file resource out over our socket 
-             * connection, line by line.  Each line must be run through the 
+            /* Stream the contents of the file resource out over our socket
+             * connection, line by line.  Each line must be run through the
              * quoting routine. */
             while (strlen($line = fread($data, 8192)) > 0) {
                 /* If the last character is an newline, we need to grab the
@@ -1082,21 +1082,21 @@ class Net_SMTP
                     }
                 }
                 $this->quotedata($line);
-                if (PEAR::isError($result = $this->_send($line))) {
+                if (@PEAR::isError($result = $this->_send($line))) {
                     return $result;
                 }
             }
         } else {
             /*
-             * Break up the data by sending one chunk (up to 512k) at a time.  
+             * Break up the data by sending one chunk (up to 512k) at a time.
              * This approach reduces our peak memory usage.
              */
             for ($offset = 0; $offset < $size;) {
                 $end = $offset + 512000;
 
                 /*
-                 * Ensure we don't read beyond our data size or span multiple 
-                 * lines.  quotedata() can't properly handle character data 
+                 * Ensure we don't read beyond our data size or span multiple
+                 * lines.  quotedata() can't properly handle character data
                  * that's split across two line break boundaries.
                  */
                 if ($end >= $size) {
@@ -1114,7 +1114,7 @@ class Net_SMTP
                 $this->quotedata($chunk);
 
                 /* If we run into a problem along the way, abort. */
-                if (PEAR::isError($result = $this->_send($chunk))) {
+                if (@PEAR::isError($result = $this->_send($chunk))) {
                     return $result;
                 }
 
@@ -1124,12 +1124,12 @@ class Net_SMTP
         }
 
         /* Finally, send the DATA terminator sequence. */
-        if (PEAR::isError($result = $this->_send("\r\n.\r\n"))) {
+        if (@PEAR::isError($result = $this->_send("\r\n.\r\n"))) {
             return $result;
         }
 
         /* Verify that the data was successfully received by the server. */
-        if (PEAR::isError($error = $this->_parseResponse(250, $this->pipelining))) {
+        if (@PEAR::isError($error = $this->_parseResponse(250, $this->pipelining))) {
             return $error;
         }
 
@@ -1148,10 +1148,10 @@ class Net_SMTP
      */
     function sendFrom($path)
     {
-        if (PEAR::isError($error = $this->_put('SEND', "FROM:<$path>"))) {
+        if (@PEAR::isError($error = $this->_put('SEND', "FROM:<$path>"))) {
             return $error;
         }
-        if (PEAR::isError($error = $this->_parseResponse(250, $this->pipelining))) {
+        if (@PEAR::isError($error = $this->_parseResponse(250, $this->pipelining))) {
             return $error;
         }
 
@@ -1187,10 +1187,10 @@ class Net_SMTP
      */
     function somlFrom($path)
     {
-        if (PEAR::isError($error = $this->_put('SOML', "FROM:<$path>"))) {
+        if (@PEAR::isError($error = $this->_put('SOML', "FROM:<$path>"))) {
             return $error;
         }
-        if (PEAR::isError($error = $this->_parseResponse(250, $this->pipelining))) {
+        if (@PEAR::isError($error = $this->_parseResponse(250, $this->pipelining))) {
             return $error;
         }
 
@@ -1226,10 +1226,10 @@ class Net_SMTP
      */
     function samlFrom($path)
     {
-        if (PEAR::isError($error = $this->_put('SAML', "FROM:<$path>"))) {
+        if (@PEAR::isError($error = $this->_put('SAML', "FROM:<$path>"))) {
             return $error;
         }
-        if (PEAR::isError($error = $this->_parseResponse(250, $this->pipelining))) {
+        if (@PEAR::isError($error = $this->_parseResponse(250, $this->pipelining))) {
             return $error;
         }
 
@@ -1263,10 +1263,10 @@ class Net_SMTP
      */
     function rset()
     {
-        if (PEAR::isError($error = $this->_put('RSET'))) {
+        if (@PEAR::isError($error = $this->_put('RSET'))) {
             return $error;
         }
-        if (PEAR::isError($error = $this->_parseResponse(250, $this->pipelining))) {
+        if (@PEAR::isError($error = $this->_parseResponse(250, $this->pipelining))) {
             return $error;
         }
 
@@ -1286,10 +1286,10 @@ class Net_SMTP
     function vrfy($string)
     {
         /* Note: 251 is also a valid response code */
-        if (PEAR::isError($error = $this->_put('VRFY', $string))) {
+        if (@PEAR::isError($error = $this->_put('VRFY', $string))) {
             return $error;
         }
-        if (PEAR::isError($error = $this->_parseResponse(array(250, 252)))) {
+        if (@PEAR::isError($error = $this->_parseResponse(array(250, 252)))) {
             return $error;
         }
 
@@ -1306,10 +1306,10 @@ class Net_SMTP
      */
     function noop()
     {
-        if (PEAR::isError($error = $this->_put('NOOP'))) {
+        if (@PEAR::isError($error = $this->_put('NOOP'))) {
             return $error;
         }
-        if (PEAR::isError($error = $this->_parseResponse(250))) {
+        if (@PEAR::isError($error = $this->_parseResponse(250))) {
             return $error;
         }
 

@@ -43,21 +43,36 @@ $attributes = $session->getAttributes();
 $state['Attributes'] = $attributes;
 
 
+
 $uid = $attributes[ $as['uidField'] ][0];
 $email = $attributes[ $as['emailField'] ][0]; // todo fall back on uid if not set
+$givenName = $attributes[$as['givenName']][0];
+
 $state['UserID'] = $uid;
 $isRegistered = $qaLogin->isRegistered($uid);
-$isSSLVerified = $qaLogin->hasValidCert();
+$isSSLVerified = $qaLogin->hasValidCert($uid);
+$accountLocked = $qaLogin->isLocked($uid);
 
 $prefs = $qaLogin->get2FactorFromUID($uid);
-$t->data['useSMS'] = true;
+$t->data['useSMS'] = true; // there is no SMS support this is misused for Email based code
 
+// Check account is locked or not
+if($accountLocked) {
+    $errorCode = 'ACCOUNTLOCKED';
+    $t->data['todo'] = 'loginCode';
+    // destroy session and the user out
+    $qaLogin->logout($state);
+}
 
 // if we are using SSL ceritificate to verify then we do not need 2-factor
-
-if ($isSSLVerified) {
+if ($isSSLVerified && !$accountLocked) {
     $state['saml:AuthnContextClassRef'] = $qaLogin->tfa_authencontextclassref;
     SimpleSAML_Auth_Source::completeAuth($state);
+} else {
+    // if SSL verification has failed make sure we fall back on question
+    if (!$qaLogin->hasMailCode($uid)) {
+        $qaLogin->set2Factor($uid, 'question');
+    }
 }
 
 /******************************
@@ -69,18 +84,32 @@ if (!$isRegistered && !$isSSLVerified) {
     //If the user has not set his preference of 2 factor authentication, redirect to settings page
     if ( isset($_POST['answers']) && isset($_POST['questions']) ){
         // Save answers
-        $answers = $_POST["answers"];
-        $questions = $_POST["questions"];
+        $answers = (isset($_POST["answers"]))? $_POST["answers"] : [];
+        $questions = (isset($_POST["questions"]))? $_POST["questions"] : [];
+        $custom_questions = (isset($_POST["custom_questions"]))?  $_POST["custom_questions"] : [];
+
+        foreach($custom_questions as $ck => $cv) {
+            if (!empty($cv)) {
+                $questions[$ck] = $cv;
+            }
+        }
 
         // verify answers are not duplicates
         if( (sizeof(array_unique($answers)) != sizeof($answers)) || (sizeof(array_unique($questions)) != sizeof($questions)) ){
             $errorCode = 'INVALIDQUESTIONANSWERS';
             $t->data['todo'] = 'selectanswers';
-        } elseif (in_array(0, $questions) || sizeof($answers) < 3) {
+        } elseif (count($questions) < 3 || sizeof($answers) < 3) {
             $errorCode = 'INCOMPLETEQUESTIONS';
             $t->data['todo'] = 'selectanswers';
         } else {
-            $result = $qaLogin->registerAnswers($uid, $answers, $questions);
+
+            if (count(array_filter($custom_questions)) > 0) {
+                // we are dealing with one or more userdefined questions
+                $result = $qaLogin->registerCustomAnswers($uid, $answers, $questions);
+            } else {
+                $result = $qaLogin->registerAnswers($uid, $answers, $questions);
+            }
+
             if (!$result) {
                 // Failed to register answers for some reason. This is probably because one or more answer is too short
                 $errorCode = 'SHORTQUESTIONANSWERS';
@@ -94,7 +123,6 @@ if (!$isRegistered && !$isSSLVerified) {
         }
 
     } else {
-
         // We are setting the preference of user for the first time
         if(isset($_POST["authpref"])) {
             $t->data['todo'] = 'selectanswers';
@@ -124,11 +152,11 @@ if (!$isRegistered && !$isSSLVerified) {
  *          EXISTING USERS
  ******************************/
 
-if ($isRegistered && !$isSSLVerified) {
-    // do this if it's questions
+if ($isRegistered && !$isSSLVerified && !$accountLocked) {
 
+    // do this if it's questions
     $t->data['autofocus'] = 'answer';
-    if ($prefs['challenge_type'] == 'question' && (count($qaLogin->getAnswersFromUID($uid)))) {
+    if ($prefs['challenge_type'] == 'question' && (count($qaLogin->getAnswersFromUID($uid))>0)) {
 
         $t->data['todo'] = 'loginANSWER';
         $t->data['useSMS'] = false;
@@ -159,24 +187,42 @@ if ($isRegistered && !$isSSLVerified) {
                         $loggedIn = $qaLogin->verifyAnswer($uid, $_POST['question_id'], $_POST['answer']);
                         if ($loggedIn){
                             $state['saml:AuthnContextClassRef'] = $qaLogin->tfa_authencontextclassref;
+                            $qaLogin->resetFailedLoginAttempts($uid, 'answer_count');
                             SimpleSAML_Auth_Source::completeAuth($state);
                         } else {
                             $errorCode = 'WRONGANSWER';
+                            // only increment if the account is not already locked
+                            if (!$qaLogin->isLocked($uid)) {
+                                $qaLogin->failedLoginAttempt($uid, 'answer_count', array(
+                                                                                        'name' => $givenName,
+                                                                                        'mail' => $email,
+                                                                                        'uid' => $uid
+                                                                                    )
+                                );
+                            }
+
                             $t->data['todo'] = 'loginANSWER';
                         }
                     }
                     else {
                        $t->data['todo'] = 'loginCode';
-
                         // TODO don't need to verify an invalid code
                         $loggedIn = $qaLogin->verifyChallenge($uid, $_POST['answer']);
 
                         if ($loggedIn){
                           $state['saml:AuthnContextClassRef'] = $qaLogin->tfa_authencontextclassref;
+                          $qaLogin->resetFailedLoginAttempts($uid, 'answer_count');
                           SimpleSAML_Auth_Source::completeAuth($state);
                         } else {
                           $errorCode = 'CODEXPIRED';
-
+                          if (!$qaLogin->isLocked($uid)) {
+                            $qaLogin->failedLoginAttempt($uid, 'answer_count', array(
+                                                                                        'name' => $givenName,
+                                                                                        'mail' => $email,
+                                                                                        'uid' => $uid
+                                                                                    )
+                            );
+                          }
                         }
                    }
                 }
@@ -185,12 +231,13 @@ if ($isRegistered && !$isSSLVerified) {
 
             // Switch to Questions button pushed
             case $t->t('{auth2factor:login:switchtoq}'):
-                //error_log('switchtoq');
                 if(count($qaLogin->getAnswersFromUID($uid))) {
                     // get a random question
                     $random_question = $qaLogin->getRandomQuestion($uid);
-                    $t->data['random_question'] = array("question_text" => $random_question["question_text"],
-                                            "question_id" => $random_question["question_id"]);
+                    $t->data['random_question'] = array(
+                                                    "question_text" => $random_question["question_text"],
+                                                    "question_id" => $random_question["question_id"]
+                                                  );
                 }
 
                 $qaLogin->set2Factor($uid, 'question');
@@ -205,19 +252,38 @@ if ($isRegistered && !$isSSLVerified) {
 
                 break;
 
-            // Switch to SMS button pushed
+            // Switch to Mail code button (link) pushed
             case $t->t('{auth2factor:login:switchtomail}'):
-                //error_log('switchtosms');
                 $qaLogin->set2Factor($uid, 'mail');
                 $qaLogin->sendMailCode($uid, $email);
                 $t->data['todo'] = 'loginCode';
                 $t->data['useSMS'] = true;
                 break;
 
+            // User asked to reset their question and answers
+            case $t->t('{auth2factor:login:resetquestions}'):
+                $qaLogin->set2Factor($uid, 'questions');
+                $unregistered  = $qaLogin->unregisterQuestions($uid);
+                if ($unregistered) {
+                    $t->data['todo'] = 'selectanswers';
+                    $t->data['useSMS'] = false;
+                    $qaLogin->sendQuestionResetEmail($attributes);
+                }
+
+                break;
+
             case $t->t('{auth2factor:login:resend}'):
                 $qaLogin->sendMailCode($uid, $email);
                 $t->data['todo'] = 'loginCode';
                 $t->data['useSMS'] = true;
+                if (!$qaLogin->isLocked($uid)) {
+                    $qaLogin->failedLoginAttempt($uid, 'answer_count', array(
+                                                                            'name' => $givenName,
+                                                                            'mail' => $email,
+                                                                            'uid' => $uid
+                                                                        )
+                    );
+                }
                 break;
             default:
                 break;
@@ -232,6 +298,7 @@ if ($isRegistered && !$isSSLVerified) {
 $t->data['stateparams'] = array('AuthState' => $authStateId);
 $t->data['errorcode'] = $errorCode;
 $t->data['minAnswerLength'] = $qaLogin->getMinAnswerLength();
+$t->data['minQuestionLength'] = $qaLogin->getMinQuestionLength();
 
 // get the preferences agains as they may have changed above
 $prefs = $qaLogin->get2FactorFromUID($uid);
@@ -243,6 +310,7 @@ if (!$t->data['todo'] == 'selectauthpref') {
         $t->data['useSMS'] = true;
         $t->data['todo'] = 'loginCode';
         if(!$qaLogin->hasMailCode($uid)) {
+            // TODO investigate this seems like a pointless condition never gets executed!
             $qaLogin->sendMailCode($uid, $email);
         }
     }

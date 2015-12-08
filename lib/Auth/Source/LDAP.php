@@ -32,7 +32,7 @@ class sspmod_auth2factor_Auth_Source_LDAP extends sspmod_core_Auth_UserPassBase 
 		/* Call the parent constructor first, as required by the interface. */
 		parent::__construct($info, $config);
 
-		$this->ldapConfig = new sspmod_ldap_ConfigHelper($config,
+		$this->ldapConfig = new sspmod_auth2factor_LDAPConfigHelper($config,
 			'Authentication source ' . var_export($this->authId, TRUE));
 	}
 
@@ -48,41 +48,7 @@ class sspmod_auth2factor_Auth_Source_LDAP extends sspmod_core_Auth_UserPassBase 
 		assert('is_string($username)');
 		assert('is_string($password)');
 
-		$qaLogin = SimpleSAML_Auth_Source::getById('auth2factor');
-
-
-		$result = $this->ldapConfig->login($username, $password, $sasl_args);
-
-		if (!$result) {
-            $failedAttempts = $qaLogin->getFailedAttempts($username);
-            $failCount = (int)$failedAttempts[0]['login_count'] + (int) $failedAttempts[0]['answer_count'];
-            $firstFailCount = $qaLogin->getmaxFailLogin() - 2;
-            $secondFailCount = $qaLogin->getmaxFailLogin() - 1;
-
-
-            if ($failCount == $firstFailCount){
-                throw new SimpleSAML_Error_Error('2FAILEDATTEMPTWARNING');
-            }
-
-            if ($failCount == $secondFailCount) {
-                throw new SimpleSAML_Error_Error('1FAILEDATTEMPTWARNING');
-            }
-
-            if ($qaLogin->isLocked($username)) {
-                throw new SimpleSAML_Error_Error('ACCOUNTLOCKED');
-            }
-
-		}
-		// make sure login counter is zero!
-		$qaLogin->resetFailedLoginAttempts($uid);
-
-		if (!$result) {
-			// increment failed login attempts
-			// TODO pass in $result as that will contain the attributes
-			$qaLogin->failedLoginAttempt($username,'login_count');
-		}
-
-		return $result;
+		return $this->ldapConfig->login($username, $password, $sasl_args);
 	}
 
 }

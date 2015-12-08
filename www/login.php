@@ -51,6 +51,12 @@ $state['UserID'] = $uid;
 $isRegistered = $qaLogin->isRegistered($uid);
 $isSSLVerified = $qaLogin->hasValidCert($uid);
 $accountLocked = $qaLogin->isLocked($uid);
+$failedAttempts = $qaLogin->getFailedAttempts($uid);
+
+$failCount = (int)$failedAttempts[0]['login_count'] + (int) $failedAttempts[0]['answer_count'];
+// TODO this is bad, what if maxFailLogin is not set or is zero or is less than 3
+$firstFailCount = $qaLogin->getmaxFailLogin() - 2;
+$secondFailCount = $qaLogin->getmaxFailLogin() - 1;
 
 $prefs = $qaLogin->get2FactorFromUID($uid);
 $t->data['useSMS'] = true; // there is no SMS support this is misused for Email based code
@@ -199,12 +205,6 @@ if ($isRegistered && !$isSSLVerified && !$accountLocked) {
                                                                                     )
                                 );
 
-                                $failedAttempts = $qaLogin->getFailedAttempts($uid);
-                                $failCount = (int)$failedAttempts[0]['login_count'] + (int) $failedAttempts[0]['answer_count'];
-                                $firstFailCount = $qaLogin->getmaxFailLogin() - 2;
-                                $secondFailCount = $qaLogin->getmaxFailLogin() - 1;
-
-
                                 if ($failCount == $firstFailCount){
                                     $errorCode = '2FAILEDATTEMPTWARNING';
                                 }
@@ -231,11 +231,19 @@ if ($isRegistered && !$isSSLVerified && !$accountLocked) {
                           $errorCode = 'CODEXPIRED';
                           if (!$qaLogin->isLocked($uid)) {
                             $qaLogin->failedLoginAttempt($uid, 'answer_count', array(
-                                                                                        'name' => $givenName,
-                                                                                        'mail' => $email,
-                                                                                        'uid' => $uid
-                                                                                    )
+                                                                                'name' => $givenName,
+                                                                                'mail' => $email,
+                                                                                'uid' => $uid
+                                                                                )
                             );
+
+                            if ($failCount == $firstFailCount){
+                                $errorCode = '2FAILEDATTEMPTWARNING';
+                            }
+
+                            if ($failCount == $secondFailCount) {
+                                $errorCode = '1FAILEDATTEMPTWARNING';
+                            }
                           }
                         }
                    }

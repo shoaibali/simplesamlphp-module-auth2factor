@@ -36,7 +36,7 @@
  *
  * @category    HTTP
  * @package     HTTP_Request
- * @author      Jon Parise <jon@php.net> 
+ * @author      Jon Parise <jon@php.net>
  * @author      Chuck Hagenbuch <chuck@horde.org>
  * @copyright   2010 Chuck Hagenbuch
  * @license     http://opensource.org/licenses/bsd-license.php New BSD License
@@ -246,7 +246,7 @@ class Mail_smtp extends Mail {
     {
         /* If we don't already have an SMTP object, create one. */
         $result = &$this->getSMTPObject();
-        if (PEAR::isError($result)) {
+        if (@PEAR::isError($result)) {
             return $result;
         }
 
@@ -282,7 +282,7 @@ class Mail_smtp extends Mail {
                 $params .= ' ' . $key . (is_null($val) ? '' : '=' . $val);
             }
         }
-        if (PEAR::isError($res = $this->_smtp->mailFrom($from, ltrim($params)))) {
+        if (@PEAR::isError($res = $this->_smtp->mailFrom($from, ltrim($params)))) {
             $error = $this->_error("Failed to set sender: $from", $res);
             $this->_smtp->rset();
             return PEAR::raiseError($error, PEAR_MAIL_SMTP_ERROR_SENDER);
@@ -362,24 +362,24 @@ class Mail_smtp extends Mail {
         }
 
         /* Attempt to connect to the configured SMTP server. */
-        if (PEAR::isError($res = $this->_smtp->connect($this->timeout))) {
+        if (@PEAR::isError($res = $this->_smtp->connect($this->timeout))) {
             $error = $this->_error('Failed to connect to ' .
                                    $this->host . ':' . $this->port,
                                    $res);
-            return PEAR::raiseError($error, PEAR_MAIL_SMTP_ERROR_CONNECT);
+            return @PEAR::raiseError($error, PEAR_MAIL_SMTP_ERROR_CONNECT);
         }
 
         /* Attempt to authenticate if authentication has been enabled. */
         if ($this->auth) {
             $method = is_string($this->auth) ? $this->auth : '';
 
-            if (PEAR::isError($res = $this->_smtp->auth($this->username,
+            if (@PEAR::isError($res = $this->_smtp->auth($this->username,
                                                         $this->password,
                                                         $method))) {
                 $error = $this->_error("$method authentication failure",
                                        $res);
                 $this->_smtp->rset();
-                return PEAR::raiseError($error, PEAR_MAIL_SMTP_ERROR_AUTH);
+                return @PEAR::raiseError($error, PEAR_MAIL_SMTP_ERROR_AUTH);
             }
         }
 

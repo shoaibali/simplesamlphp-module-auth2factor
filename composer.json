@@ -1,6 +1,6 @@
 {
     "name": "shoaibali/simplesamlphp-module-auth2factor",
-    "description": "SimpleSAMLphp module that challenges users for 2nd factor, by generating a unique token/code. Currently this token is being sent to the user via email address. Future possibilities to integrate with an text message (sms) system. This module also allows a lower strength 2nd step authentication if token based challenge is not feasible. User preference is stored in the database and allows users to switch between the two.",
+    "description": "SimpleSAMLphp module that provides second step to authentication via mail code, secret question and answers or SSL verification cert.",
     "type": "simplesamlphp-module",
     "require": {
         "simplesamlphp/composer-module-installer": "~1.0"

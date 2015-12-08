@@ -282,9 +282,23 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
               challenge_type ENUM('".self::FACTOR_QUESTION."', '".self::FACTOR_SMS."', '".self::FACTOR_MAIL."', '".self::FACTOR_SSL."') NOT NULL,
               last_code VARCHAR(10) NULL,
               last_code_stamp TIMESTAMP NULL,
+              login_count INT NOT NULL,
+              answer_count INT NOT NULL,
+              locked BOOLEAN NOT NULL DEFAULT FALSE,
               UNIQUE KEY uid (uid)
              );";
       $result = $this->dbh->query($q);
+
+      /* Create table to hold user defined questions */
+      $q = "CREATE TABLE IF NOT EXISTS ssp_user_questions (
+              user_question_id INT(11) NOT NULL,
+              PRIMARY KEY(user_question_id),
+              uid VARCHAR(60) NOT NULL,
+              user_question VARCHAR(100) NULL,
+              UNIQUE KEY uid (uid)
+             );";
+      $result = $this->dbh->query($q);
+
   }
 
     private function initQuestions($questions){

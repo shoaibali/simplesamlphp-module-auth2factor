@@ -1,7 +1,7 @@
-/* 29th November 2015 */
+-- 29th November 2015 --
 ALTER TABLE `ssp_user_2factor` CHANGE `challenge_type` `challenge_type` ENUM('question','sms','mail','ssl');
 
-/* 30th November 2015 */
+-- 30th November 2015 --
 CREATE TABLE IF NOT EXISTS `ssp_user_questions` (
 `user_question_id` int(11) NOT NULL,
   `uid` int(11) NOT NULL,

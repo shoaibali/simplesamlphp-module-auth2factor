@@ -130,7 +130,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
       // look in DSN maybe its in there?
       if (isset($this->db_dsn)) {
         $dsnArray = array();
-        foreach(explode(";", $dsn) as $key => $value) {
+        foreach(explode(";", $this->db_dsn) as $key => $value) {
           $res = explode("=", $value);
           $dsnArray[$res[0]] = $res[1];
         }

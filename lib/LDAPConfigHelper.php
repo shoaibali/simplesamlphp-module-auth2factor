@@ -198,6 +198,9 @@ class sspmod_auth2factor_LDAPConfigHelper extends sspmod_ldap_ConfigHelper {
             }
         }
 
+
+        $qaLogin = SimpleSAML_Auth_Source::getById('auth2factor');
+
         if (!$ldap->bind($dn, $password, $sasl_args)) {
             SimpleSAML_Logger::info($this->location . ': '. $username . ' failed to authenticate. DN=' . $dn);
 
@@ -205,8 +208,6 @@ class sspmod_auth2factor_LDAPConfigHelper extends sspmod_ldap_ConfigHelper {
 
             // we need mail attributes so that we can notify user of locked account
             $attributes = $ldap->getAttributes($dn, $this->searchAttributes);
-
-            $qaLogin = SimpleSAML_Auth_Source::getById('auth2factor');
 
             // TODO what if these attributes are not available for search or not set in config?
             $qaLogin->failedLoginAttempt($username, 'login_count', array(
@@ -249,6 +250,8 @@ class sspmod_auth2factor_LDAPConfigHelper extends sspmod_ldap_ConfigHelper {
                 throw new Exception('Error authenticating using privileged DN & password.');
             }
         }
+        // if we are here - we must have logged in successfully .. therefore reset login attempts
+        $qaLogin->resetFailedLoginAttempts($username, 'login_count');
 
         return $ldap->getAttributes($dn, $this->attributes);
     }

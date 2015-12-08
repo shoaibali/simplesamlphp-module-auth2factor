@@ -126,6 +126,16 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
     }
     if (array_key_exists('db.name', $config)) {
       $this->db_name = $config['db.name'];
+    } else {
+      // look in DSN maybe its in there?
+      if (isset($this->db_dsn)) {
+        $dsnArray = array();
+        foreach(explode(";", $dsn) as $key => $value) {
+          $res = explode("=", $value);
+          $dsnArray[$res[0]] = $res[1];
+        }
+        $this->db_name = $dsnArray['dbname'];
+      }
     }
     if (array_key_exists('db.username', $config)) {
       $this->db_username = $config['db.username'];

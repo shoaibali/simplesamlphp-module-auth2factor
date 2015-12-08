@@ -198,6 +198,21 @@ if ($isRegistered && !$isSSLVerified && !$accountLocked) {
                                                                                         'uid' => $uid
                                                                                     )
                                 );
+
+                                $failedAttempts = $qaLogin->getFailedAttempts($uid);
+                                $failCount = (int)$failedAttempts[0]['login_count'] + (int) $failedAttempts[0]['answer_count'];
+                                $firstFailCount = $qaLogin->getmaxFailLogin() - 2;
+                                $secondFailCount = $qaLogin->getmaxFailLogin() - 1;
+
+
+                                if ($failCount == $firstFailCount){
+                                    $errorCode = '2FAILEDATTEMPTWARNING';
+                                }
+
+                                if ($failCount == $secondFailCount) {
+                                    $errorCode = '1FAILEDATTEMPTWARNING';
+                                }
+
                             }
 
                             $t->data['todo'] = 'loginANSWER';

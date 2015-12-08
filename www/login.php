@@ -39,7 +39,7 @@ if (!$session->isValid( $as['mainAuthSource'] )) {
     SimpleSAML_Auth_Default::initLogin( $as['mainAuthSource'], SimpleSAML_Utilities::selfURL());
 }
 
-$attributes = $session->getAttributes();
+$attributes = $session->getAuthData($as['mainAuthSource'], 'Attributes');
 $state['Attributes'] = $attributes;
 
 

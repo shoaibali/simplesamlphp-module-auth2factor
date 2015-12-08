@@ -267,6 +267,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
       $q = "CREATE TABLE IF NOT EXISTS ssp_answers (
               answer_id INT(11) NOT NULL AUTO_INCREMENT,
               PRIMARY KEY(answer_id),
+              user_question_id INT(11) NOT NULL,
               answer_hash VARCHAR(128) NOT NULL,
               answer_salt VARCHAR(15) NOT NULL,
                   question_id INT(11) NOT NULL,
@@ -629,10 +630,12 @@ EOD;
                                        ':question' => $question,
                                        ':uid' => $uid]);
                 SimpleSAML_Logger::debug('auth2factor: ' . $uid . ' registered his answer: '. $answer . ' for question_id:' . $question);
+                $result = TRUE;
             } else {
                 $result = FALSE;
             }
         }
+
         return $result;
     }
 
@@ -685,10 +688,7 @@ EOD;
 
 
               // Check that the answer meets the length requirements
-              if ((strlen($answer) >= $this->minAnswerLength)
-                  && (strlen($question) >= $this->minQuestionLength)
-                  && (int) $user_question_id > 0
-              ) {
+              if ((strlen($answer) >= $this->minAnswerLength) && (strlen($question) >= $this->minQuestionLength)) {
                   $answer_salt = $this->generateRandomString();
                   $answer_hash = $this->calculateAnswerHash($answer, $this->site_salt, $answer_salt);
                   $q = $this->dbh->prepare("INSERT INTO ssp_answers (answer_salt, answer_hash, user_question_id, uid) VALUES (:answer_salt, :answer_hash, :user_question_id, :uid)");
@@ -699,13 +699,13 @@ EOD;
                                          ':user_question_id' => $user_question_id,
                                          ':uid' => $uid]);
                   SimpleSAML_Logger::debug('auth2factor: ' . $uid . ' registered his answer: '. $answer . ' for custom_question_id:' . $user_question_id);
+                  $result = TRUE;
               } else {
                   $result = FALSE;
               }
 
 
             } else { // dealing with pre-defined questions below
-
               // Check that the answer meets the length requirements
               if ((strlen($answer) >= $this->minAnswerLength) && (int) $question > 0) {
                   $answer_salt = $this->generateRandomString();
@@ -718,11 +718,13 @@ EOD;
                                          ':question' => $question,
                                          ':uid' => $uid]);
                   SimpleSAML_Logger::debug('auth2factor: ' . $uid . ' registered his answer: '. $answer . ' for question_id:' . $question);
+                  $result = TRUE;
               } else {
                   $result = FALSE;
               }
             }
         }
+
         return $result;
     }
 
@@ -872,7 +874,7 @@ EOD;
       $result = $q->execute([':uid' => $uid]);
       $rows = $q->fetchAll();
 
-      return (bool) $rows[0]['locked'];
+      return (bool) (!empty($rows))? $rows[0]['locked'] : false;
     }
 
    /**

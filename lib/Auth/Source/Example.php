@@ -100,8 +100,10 @@ class sspmod_auth2factor_Auth_Source_Example extends sspmod_core_Auth_UserPassBa
                                                                 )
             );
 
-            $failedAttempts = $qaLogin->getFailedAttempts($uid);
-            $failCount = (int)$failedAttempts[0]['login_count'] + (int) $failedAttempts[0]['answer_count'];
+            $loginCount = (int) (!empty($failedAttempts))? $failedAttempts[0]['login_count'] : 0;
+            $answerCount = (int) (!empty($failedAttempts))? $failedAttempts[0]['answer_count'] : 0;
+            $failCount =  $loginCount + $answerCount;
+
             $firstFailCount = $qaLogin->getmaxFailLogin() - 2;
             $secondFailCount = $qaLogin->getmaxFailLogin() - 1;
 

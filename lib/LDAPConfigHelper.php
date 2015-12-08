@@ -218,7 +218,10 @@ class sspmod_auth2factor_LDAPConfigHelper extends sspmod_ldap_ConfigHelper {
             );
 
             $failedAttempts = $qaLogin->getFailedAttempts($username);
-            $failCount = (int)$failedAttempts[0]['login_count'] + (int) $failedAttempts[0]['answer_count'];
+            $loginCount = (int) (!empty($failedAttempts))? $failedAttempts[0]['login_count'] : 0;
+            $answerCount = (int) (!empty($failedAttempts))? $failedAttempts[0]['answer_count'] : 0;
+            $failCount =  $loginCount + $answerCount;
+
             // TODO this is bad! what if maxFailLogin is not set (i.e 0) or less than 3? instant lock?
             $firstFailCount = $qaLogin->getmaxFailLogin() - 2;
             $secondFailCount = $qaLogin->getmaxFailLogin() - 1;

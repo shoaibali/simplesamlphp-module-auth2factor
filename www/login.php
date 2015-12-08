@@ -53,7 +53,10 @@ $isSSLVerified = $qaLogin->hasValidCert($uid);
 $accountLocked = $qaLogin->isLocked($uid);
 $failedAttempts = $qaLogin->getFailedAttempts($uid);
 
-$failCount = (int)$failedAttempts[0]['login_count'] + (int) $failedAttempts[0]['answer_count'];
+$loginCount = (int) (!empty($failedAttempts))? $failedAttempts[0]['login_count'] : 0;
+$answerCount = (int) (!empty($failedAttempts))? $failedAttempts[0]['answer_count'] : 0;
+$failCount =  $loginCount + $answerCount;
+
 // TODO this is bad, what if maxFailLogin is not set or is zero or is less than 3
 $firstFailCount = $qaLogin->getmaxFailLogin() - 2;
 $secondFailCount = $qaLogin->getmaxFailLogin() - 1;

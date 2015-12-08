@@ -43,10 +43,9 @@ $attributes = $session->getAuthData($as['mainAuthSource'], 'Attributes');
 $state['Attributes'] = $attributes;
 
 
-
 $uid = $attributes[ $as['uidField'] ][0];
-$email = $attributes[ $as['emailField'] ][0]; // todo fall back on uid if not set
-$givenName = $attributes[$as['givenName']][0];
+$email = $attributes[ $as['emailField'] ][0]; // TODO fall back on uid if not set
+$givenName = $attributes['givenName'][0]; // TODO this may or may not be there
 
 $state['UserID'] = $uid;
 $isRegistered = $qaLogin->isRegistered($uid);

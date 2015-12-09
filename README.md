@@ -1,5 +1,6 @@
-autht2factor
-==========
+SimpleSAMLphp module autht2factor
+=================================
+
 Two-step authentication module for simpleSAMLphp using secret questions and answers, Email based token or SSL client verification certificate to bypass 2nd step.
 
 - User has ability to switch between 2nd step.
@@ -11,10 +12,14 @@ Two-step authentication module for simpleSAMLphp using secret questions and answ
 
 Demonstration
 ==============
+
 Below is a demonstration of what this module can do, this is using exampleauth module in SimpleSAMLphp.
 The theme used in the demonstration is also available here https://github.com/shoaibali/simplesamlphp-module-theme2factor
 
 ![auth2factor simplesamlphp module demonstration](https://github.com/shoaibali/simplesamlphp-module-auth2factor/blob/master/docs/sso.gif?raw=true "SimpleSAMLphp module auth2factor demonstration")
+
+Configuration
+=============
 
 Configure it by adding an entry to config/authsources.php such as this:
  

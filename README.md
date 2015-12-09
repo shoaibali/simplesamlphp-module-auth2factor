@@ -1,4 +1,4 @@
-SimpleSAMLphp module autht2factor
+SimpleSAMLphp module auth2factor
 =================================
 
 Two-step authentication module for simpleSAMLphp using secret questions and answers, Email based token or SSL client verification certificate to bypass 2nd step.

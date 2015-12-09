@@ -1,5 +1,5 @@
 {
-    "name": "simplesamlphp/simplesamlphp-module-auth2factor",
+    "name": "shoaibali/simplesamlphp-module-auth2factor",
     "description": "SimpleSAMLphp module that provides second step to authentication via mail code, secret question and answers or SSL verification cert.",
     "type": "simplesamlphp-module",
     "require": {

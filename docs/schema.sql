@@ -1,8 +1,5 @@
---
--- Database: `authqstep_test`
---
-
--- --------------------------------------------------------
+-- The module will make an attempt to create this schema --
+-- This file is for reference only --
 
 --
 -- Table structure for table `ssp_answers`
@@ -10,10 +7,10 @@
 
 CREATE TABLE IF NOT EXISTS `ssp_answers` (
 `answer_id` int(11) NOT NULL,
+  `user_question_id` int(11) NOT NULL,
   `answer_hash` varchar(128) NOT NULL,
   `answer_salt` varchar(15) NOT NULL,
   `question_id` int(11) NOT NULL,
-  `user_question_id` int(11) NOT NULL,
   `uid` varchar(60) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
@@ -52,8 +49,8 @@ CREATE TABLE IF NOT EXISTS `ssp_user_2factor` (
 
 CREATE TABLE IF NOT EXISTS `ssp_user_questions` (
 `user_question_id` int(11) NOT NULL,
-  `uid` varchar(11) NOT NULL,
-  `user_question` varchar(100) NOT NULL
+  `uid` varchar(60) NOT NULL,
+  `user_question` varchar(100) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 --
@@ -64,7 +61,7 @@ CREATE TABLE IF NOT EXISTS `ssp_user_questions` (
 -- Indexes for table `ssp_answers`
 --
 ALTER TABLE `ssp_answers`
- ADD PRIMARY KEY (`answer_id`), ADD KEY `user_question_id` (`user_question_id`);
+ ADD PRIMARY KEY (`answer_id`);
 
 --
 -- Indexes for table `ssp_questions`
@@ -82,7 +79,7 @@ ALTER TABLE `ssp_user_2factor`
 -- Indexes for table `ssp_user_questions`
 --
 ALTER TABLE `ssp_user_questions`
- ADD PRIMARY KEY (`user_question_id`), ADD KEY `user_question_id` (`user_question_id`);
+ ADD PRIMARY KEY (`user_question_id`);
 
 --
 -- AUTO_INCREMENT for dumped tables

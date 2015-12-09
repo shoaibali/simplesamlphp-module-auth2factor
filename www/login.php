@@ -111,6 +111,7 @@ if (!$isRegistered && !$isSSLVerified) {
             $t->data['todo'] = 'selectanswers';
         } else {
 
+
             if (count(array_filter($custom_questions)) > 0) {
                 // we are dealing with one or more userdefined questions
                 $result = $qaLogin->registerCustomAnswers($uid, $answers, $questions);

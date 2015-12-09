@@ -292,11 +292,10 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
 
       /* Create table to hold user defined questions */
       $q = "CREATE TABLE IF NOT EXISTS ssp_user_questions (
-              user_question_id INT(11) NOT NULL,
+              user_question_id INT(11) NOT NULL AUTO_INCREMENT,
               PRIMARY KEY(user_question_id),
               uid VARCHAR(60) NOT NULL,
-              user_question VARCHAR(100) NULL,
-              UNIQUE KEY uid (uid)
+              user_question VARCHAR(100) NULL
              );";
       $result = $this->dbh->query($q);
 
@@ -640,14 +639,13 @@ EOD;
     }
 
     /**
-     * Saves user submitted answers in to database
+     * Deletes all predefined and userdefined questions for that user
      *
      * @param int $uid
      * @return boolean
      */
     public function unregisterQuestions($uid) {
       $answers = $this->dbh->prepare("DELETE FROM ssp_answers WHERE uid=:uid");
-
       $questions = $this->dbh->prepare("DELETE FROM ssp_user_questions WHERE uid=:uid");
 
       $resetAnswers = $answers->execute([':uid' => $uid]);
@@ -681,14 +679,16 @@ EOD;
         foreach ($question_answers as $answer => $question) {
             // Check for user defined question
             if (!$this->isPredefinedQuestion($question)) {
-              // insert user defined question in to database
-              $insertCustomQuestion = $this->dbh->prepare("INSERT INTO ssp_user_questions (uid, user_question) VALUES (:uid, :user_question)");
-              $r = $insertCustomQuestion->execute([':uid' => $uid, ':user_question' => $question]);
-              $user_question_id = $this->dbh->lastInsertId();
-
 
               // Check that the answer meets the length requirements
               if ((strlen($answer) >= $this->minAnswerLength) && (strlen($question) >= $this->minQuestionLength)) {
+
+                  // insert user defined question in to database
+                  $insertCustomQuestion = $this->dbh->prepare("INSERT INTO ssp_user_questions (uid, user_question) VALUES (:uid, :user_question)");
+                  $r = $insertCustomQuestion->execute([':uid' => $uid, ':user_question' => $question]);
+                  $user_question_id = $this->dbh->lastInsertId();
+
+
                   $answer_salt = $this->generateRandomString();
                   $answer_hash = $this->calculateAnswerHash($answer, $this->site_salt, $answer_salt);
                   $q = $this->dbh->prepare("INSERT INTO ssp_answers (answer_salt, answer_hash, user_question_id, uid) VALUES (:answer_salt, :answer_hash, :user_question_id, :uid)");
@@ -699,7 +699,6 @@ EOD;
                                          ':user_question_id' => $user_question_id,
                                          ':uid' => $uid]);
                   SimpleSAML_Logger::debug('auth2factor: ' . $uid . ' registered his answer: '. $answer . ' for custom_question_id:' . $user_question_id);
-                  $result = TRUE;
               } else {
                   $result = FALSE;
               }
@@ -718,7 +717,6 @@ EOD;
                                          ':question' => $question,
                                          ':uid' => $uid]);
                   SimpleSAML_Logger::debug('auth2factor: ' . $uid . ' registered his answer: '. $answer . ' for question_id:' . $question);
-                  $result = TRUE;
               } else {
                   $result = FALSE;
               }

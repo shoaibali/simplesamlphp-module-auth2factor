@@ -9,6 +9,13 @@ Two-step authentication module for simpleSAMLphp using secret questions and answ
 - Supports ability to mix and match user defined and pre-defined secret question and answers.
 - Supports SSL client certificate to bypass 2nd step.
 
+Demonstration
+==============
+Below is a demonstration of what this module can do, this is using exampleauth module in SimpleSAMLphp.
+The theme used in the demonstration is also available here https://github.com/shoaibali/simplesamlphp-module-theme2factor
+
+![auth2factor simplesamlphp module demonstration](https://github.com/shoaibali/simplesamlphp-module-auth2factor/blob/master/docs/sso.gif?raw=true "SimpleSAMLphp module auth2factor demonstration")
+
 Configure it by adding an entry to config/authsources.php such as this:
  
  ```

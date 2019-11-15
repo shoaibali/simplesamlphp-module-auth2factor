@@ -129,7 +129,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
     } else {
       // look in DSN maybe its in there?
       if (isset($this->db_dsn)) {
-        $dsnArray = array();
+        $dsnArray = [];
         foreach(explode(";", $this->db_dsn) as $key => $value) {
           $res = explode("=", $value);
           $dsnArray[$res[0]] = $res[1];
@@ -230,7 +230,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
     $id = SimpleSAML_Auth_State::saveState($state, self::STEPID);
 
     $url = SimpleSAML_Module::getModuleURL('auth2factor/login.php');
-    SimpleSAML_Utilities::redirect($url, array('AuthState' => $id));
+    SimpleSAML_Utilities::redirect($url, ['AuthState' => $id]);
   }
 
   public function logout(&$state) {
@@ -240,7 +240,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
         $id = SimpleSAML_Auth_State::saveState($state, self::STEPID);
 
         $url = SimpleSAML_Module::getModuleURL('auth2factor/logout.php');
-        SimpleSAML_Utilities::redirect($url, array('AuthState' => $id));
+        SimpleSAML_Utilities::redirect($url, ['AuthState' => $id]);
   }
 
   //Generate a random string of a given length. Used to produce the per-question salt
@@ -372,7 +372,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
         $rows = $q->fetchAll();
         if (empty($rows)){
             SimpleSAML_Logger::debug('auth2factor: use has no default prefs');
-            return array('uid' => $uid, 'challenge_type' => self::FACTOR_QUESTION);
+            return ['uid' => $uid, 'challenge_type' => self::FACTOR_QUESTION];
         }
         SimpleSAML_Logger::debug('auth2factor: using method '. $rows[0]['challenge_type']);
         return $rows[0];
@@ -430,19 +430,19 @@ Security Team
 EOD;
 
         if (isset($this->mail)) {
-          $params = array("host" => $this->mail["host"],
+          $params = ["host" => $this->mail["host"],
                           "port" => $this->mail["port"],
                           "auth" => $auth,
                           "username" => $username,
                           "password" => $password,
                           "debug" => $this->mail["debug"],
-                          );
+                          ];
 
-          $headers = array(
+          $headers = [
                       "To" => $email,
                       "From" => $this->mail["from"],
                       "Subject" => $this->mail["subject"]  . $subject,
-                    );
+                    ];
 
           $mail = new Mail();
 
@@ -477,19 +477,18 @@ EOD;
           $password = $this->mail["password"];
         }
         if (isset($this->mail)) {
-          $params = array("host" => $this->mail["host"],
-                          "port" => $this->mail["port"],
-                          "auth" => $auth,
-                          "username" => $username,
-                          "password" => $password,
-                          "debug" => $this->mail["debug"],
-                          );
+          $params = [ "host" => $this->mail["host"],
+                      "port" => $this->mail["port"],
+                      "auth" => $auth,
+                      "username" => $username,
+                      "password" => $password,
+                      "debug" => $this->mail["debug"],
+                    ];
 
-          $headers = array(
-                      "To" => $email,
-                      "From" => $this->mail["from"],
-                      "Subject" => $this->mail["subject"] . " Code = " . $code,
-                    );
+          $headers = [  "To" => $email,
+                        "From" => $this->mail["from"],
+                        "Subject" => $this->mail["subject"] . " Code = " . $code,
+                    ];
 
           $mail = new Mail();
 
@@ -817,7 +816,7 @@ EOD;
      * @param int $uid userid
      * @param  string $type Column name
      */
-    public function failedLoginAttempt($uid, $type, $attributes = array()) {
+    public function failedLoginAttempt($uid, $type, $attributes = []) {
       // write it back to database the new count
       $q = $this->dbh->prepare("UPDATE ssp_user_2factor SET $type = $type + 1 WHERE uid=:uid LIMIT 1;");
       $result = $q->execute([':uid' => $uid]);
@@ -931,19 +930,18 @@ SSO System
 EOD;
 
               if (isset($this->mail)) {
-                $params = array("host" => $this->mail["host"],
-                                "port" => $this->mail["port"],
-                                "auth" => $auth,
-                                "username" => $username,
-                                "password" => $password,
-                                "debug" => $this->mail["debug"],
-                                );
+                $params = [ "host" => $this->mail["host"],
+                            "port" => $this->mail["port"],
+                            "auth" => $auth,
+                            "username" => $username,
+                            "password" => $password,
+                            "debug" => $this->mail["debug"],
+                          ];
 
-                $headers = array(
-                            "To" => $email,
-                            "From" => $this->mail["from"],
-                            "Subject" => $this->mail["subject"]  . $subject,
-                          );
+                $headers = [  "To" => $email,
+                              "From" => $this->mail["from"],
+                              "Subject" => $this->mail["subject"]  . $subject,
+                          ];
 
                 $mail = new Mail();
 
@@ -991,19 +989,18 @@ Security Team
 EOD;
 
               if (isset($this->mail)) {
-                $params = array("host" => $this->mail["host"],
-                                "port" => $this->mail["port"],
-                                "auth" => $auth,
-                                "username" => $username,
-                                "password" => $password,
-                                "debug" => $this->mail["debug"],
-                                );
+                $params = [ "host" => $this->mail["host"],
+                            "port" => $this->mail["port"],
+                            "auth" => $auth,
+                            "username" => $username,
+                            "password" => $password,
+                            "debug" => $this->mail["debug"],
+                          ];
 
-                $headers = array(
-                            "To" => $email,
-                            "From" => $this->mail["from"],
-                            "Subject" => $this->mail["subject"]  . $subject,
-                          );
+                $headers = [  "To" => $email,
+                              "From" => $this->mail["from"],
+                              "Subject" => $this->mail["subject"]  . $subject,
+                          ];
 
                 $mail = new Mail();
 

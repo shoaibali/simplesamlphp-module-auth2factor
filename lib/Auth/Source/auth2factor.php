@@ -1,5 +1,7 @@
 <?php
 
+namespace SimpleSAML\Module\auth2factor\Auth\Source;
+
 /**
  * @author Shoaib Ali, Catalyst IT
  *
@@ -14,7 +16,7 @@
  *        'db.password' => 'password',
  *        'mainAuthSource' => 'ldap',
  *        'uidField' => 'uid',
- *        'mailField' => 'email',
+ *        'emailField' => 'email',
  *        'post_logout_url' => 'http://google.com', // URL to redirect to on logout. Optional
  *        'minAnswerLength' => 10, // Minimum answer length. Defaults to 0
  *        'minQuestionLength' => 10, // Minimum answer length. Defaults to 0
@@ -38,12 +40,12 @@
  * @version $Id$
  */
 
-class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source {
+class auth2factor extends \SimpleSAML\Auth\Source {
 
   /**
    * The string used to identify our step.
    */
-  const STEPID = 'auth2factor.step';
+  const STEPID = '\SimpleSAML\Module\auth2factor\Auth\Source\auth2factor.state';
 
   /**
    * Default minimum length of secret answer required. Can be overridden in the config
@@ -64,7 +66,19 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
   /**
    * The key of the AuthId field in the state.
    */
-  const AUTHID = 'sspmod_auth2factor_Auth_Source_auth2factor.AuthId';
+  // const AUTHID = 'sspmod_auth2factor_Auth_Source_auth2factor.AuthId';
+
+
+  /**
+   * The string used to identify our states.
+   */
+  const STAGEID = '\SimpleSAML\Module\auth2factor\Auth\Source\auth2factor.state';
+
+  /**
+   * The key of the AuthId field in the state.
+   */
+  const AUTHID = '\SimpleSAML\Module\auth2factor\Auth\Source\auth2factor.AuthId';
+
 
     /**
      *   sstc-saml-loa-authncontext-profile-draft.odt
@@ -180,7 +194,7 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
     } else {
         $this->maxCodeAge = self::MAXCODEAGE;
     }
-    $globalConfig = SimpleSAML_Configuration::getInstance();
+    $globalConfig = \SimpleSAML\Configuration::getInstance();
 
     if ($globalConfig->hasValue('secretsalt')) {
         $this->site_salt = $globalConfig->getValue('secretsalt');
@@ -190,18 +204,29 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
     }
 
     $this->tfa_authencontextclassref = self::TFAAUTHNCONTEXTCLASSREF;
+    
+    //try {
 
-    $this->dbh = new PDO($this->db_dsn, $this->db_username, $this->db_password);
-    $this->dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+      $this->dbh = new \PDO($this->db_dsn, $this->db_username, $this->db_password);
+      $this->dbh->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+      // $this->dbh->exec("CREATE DATABASE IF NOT EXISTS ".$this->db_name." CHARACTER SET utf8 COLLATION utf8_unicode_ci;");
 
-    if ($this->createDatabase($this->db_name)) {
-      // doing all these make sense if we have a database!
-      $this->createTables();
+    //} catch (PDOException $e){
 
-      if (array_key_exists('initSecretQuestions', $config)){
-          $this->initQuestions($config['initSecretQuestions']);
+
+    //}
+
+
+      //die('DB error' . $e->getMessage());
+        if ($this->createDatabase($this->db_name)) {
+          // doing all these make sense if we have a database!
+
+          $this->createTables();
+          // pre-defined secret questions in config
+          if (array_key_exists('initSecretQuestions', $config)){
+            $this->initQuestions($config['initSecretQuestions']);
+          }
       }
-    }
 
     if (array_key_exists('mail', $config)){
         $this->mail =  $config['mail'];
@@ -221,26 +246,88 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
         return $this->minQuestionLength;
   }
 
-  public function authenticate(&$state) {
-    assert('is_array($state)');
+/**
+ * Initialize login.
+ *
+ * This function saves the information about the login, and redirects to a
+ * login page.
+ *
+ * @param array &$state  Information about the current authentication.
+ */
+  public function authenticate(&$state)
+    {
+    assert(is_array($state));
 
     /* We are going to need the authId in order to retrieve this authentication source later. */
     $state[self::AUTHID] = $this->authId;
 
-    $id = SimpleSAML_Auth_State::saveState($state, self::STEPID);
+    $id = \SimpleSAML\Auth\State::saveState($state, self::STAGEID);
 
-    $url = SimpleSAML_Module::getModuleURL('auth2factor/login.php');
-    SimpleSAML_Utilities::redirect($url, ['AuthState' => $id]);
+    $url = \SimpleSAML\Module::getModuleURL('auth2factor/login.php');
+    //\SimpleSAML\Utilities::redirect($url, ['AuthState' => $id]);
+    \SimpleSAML\Utils\HTTP::redirectTrustedURL($url, ['AuthState' => $id]);
+  
   }
+
+  /**
+   * Handle login request.
+   *
+   * This function is used by the login form (core/www/loginuserpass.php) when the user
+   * enters a username and password. On success, it will not return. On wrong
+   * username/password failure, it will return the error code. Other failures will throw an
+   * exception.
+   *
+   * @param string $authStateId  The identifier of the authentication state.
+   * @param string $otp  The one time password entered-
+   * @return string|null  Error code in the case of an error.
+   */
+    // public static function handleLogin($authStateId, $otp)
+    // {
+    //     assert(is_string($authStateId));
+    //     assert(is_string($otp));
+
+    //     /* Retrieve the authentication state. */
+    //     $state = \SimpleSAML\Auth\State::loadState($authStateId, self::STAGEID);
+
+    //     /* Find authentication source. */
+    //     assert(array_key_exists(self::AUTHID, $state));
+    //     $source = \SimpleSAML\Auth\Source::getById($state[self::AUTHID]);
+    //     if ($source === null) {
+    //         throw new \Exception('Could not find authentication source with id '.$state[self::AUTHID]);
+    //     }
+
+    //     try {
+    //         /* Attempt to log in. */
+    //         $attributes = $source->login($otp);
+    //     } catch (\SimpleSAML\Error\Error $e) {
+    //         /* An error occurred during login. Check if it is because of the wrong
+    //          * username/password - if it is, we pass that error up to the login form,
+    //          * if not, we let the generic error handler deal with it.
+    //          */
+    //         if ($e->getErrorCode() === 'WRONGUSERPASS') {
+    //             return 'WRONGUSERPASS';
+    //         }
+
+    //         /* Some other error occurred. Rethrow exception and let the generic error
+    //          * handler deal with it.
+    //          */
+    //         throw $e;
+    //     }
+
+    //     $state['Attributes'] = $attributes;
+    //     \SimpleSAML\Auth\Source::completeAuth($state);
+
+    //     return null;
+    // }
 
   public function logout(&$state) {
         assert('is_array($state)');
         $state[self::AUTHID] = $this->authId;
 
-        $id = SimpleSAML_Auth_State::saveState($state, self::STEPID);
+        $id = \SimpleSAML\Auth\State::saveState($state, self::STEPID);
 
-        $url = SimpleSAML_Module::getModuleURL('auth2factor/logout.php');
-        SimpleSAML_Utilities::redirect($url, ['AuthState' => $id]);
+        $url = \SimpleSAML\Module::getModuleURL('auth2factor/logout.php');
+        \SimpleSAML\Utilities::redirect($url, ['AuthState' => $id]);
   }
 
   //Generate a random string of a given length. Used to produce the per-question salt
@@ -283,8 +370,8 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
               challenge_type ENUM('".self::FACTOR_QUESTION."', '".self::FACTOR_SMS."', '".self::FACTOR_MAIL."', '".self::FACTOR_SSL."') NOT NULL,
               last_code VARCHAR(10) NULL,
               last_code_stamp TIMESTAMP NULL,
-              login_count INT NOT NULL,
-              answer_count INT NOT NULL,
+              login_count INT NOT NULL DEFAULT 0,
+              answer_count INT NOT NULL DEFAULT 0,
               locked BOOLEAN NOT NULL DEFAULT FALSE,
               UNIQUE KEY uid (uid)
              );";
@@ -345,14 +432,14 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
             $row = $q->fetch();
             $registered =  $row["registered_count"];
             if ($registered >= 3){
-                SimpleSAML_Logger::debug('User '.$uid.' is registered, '.$registered.' answers');
+                \SimpleSAML\Logger::debug('User '.$uid.' is registered, '.$registered.' answers');
                 return TRUE;
             } else {
                 if ($this->hasRegisteredForMail($uid)) {
                   return TRUE;
-                  SimpleSAML_Logger::debug('User '.$uid.' is registered for PIN code');
+                  \SimpleSAML\Logger::debug('User '.$uid.' is registered for PIN code');
                 }
-                SimpleSAML_Logger::debug('User '.$uid.' is NOT registered, '.$registered.' answers');
+                \SimpleSAML\Logger::debug('User '.$uid.' is NOT registered, '.$registered.' answers');
                 return FALSE;
             }
         } else {
@@ -371,10 +458,10 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
         $result = $q->execute([':uid' => $uid]);
         $rows = $q->fetchAll();
         if (empty($rows)){
-            SimpleSAML_Logger::debug('auth2factor: use has no default prefs');
+            \SimpleSAML\Logger::debug('auth2factor: use has no default prefs');
             return ['uid' => $uid, 'challenge_type' => self::FACTOR_QUESTION];
         }
-        SimpleSAML_Logger::debug('auth2factor: using method '. $rows[0]['challenge_type']);
+        \SimpleSAML\Logger::debug('auth2factor: using method '. $rows[0]['challenge_type']);
         return $rows[0];
     }
 
@@ -390,9 +477,9 @@ class sspmod_auth2factor_Auth_Source_auth2factor extends SimpleSAML_Auth_Source 
           "INSERT INTO ssp_user_2factor (uid, challenge_type, last_code, last_code_stamp)
             VALUES (:uid, :type, :code, NOW())
             ON DUPLICATE KEY UPDATE challenge_type=:type, last_code=:code, last_code_stamp=NOW();");
-
+        // $uid can't be null
         $result = $q->execute([':uid' => $uid, ':type' => $type, ':code' => $code]);
-        SimpleSAML_Logger::debug('auth2factor: ' . $uid . ' set preferences: '. $type . ' code:' . $code);
+        \SimpleSAML\Logger::debug('auth2factor: ' . $uid . ' set preferences: '. $type . ' code:' . $code);
 
         return $result;
     }
@@ -454,7 +541,7 @@ EOD;
           // fall back to normal mail function
           mail($email, $subject, $body);
         }
-        SimpleSAML_Logger::debug('auth2factor: sending notification email of question reset to '. $attributes['uid'][0]);
+        \SimpleSAML\Logger::debug('auth2factor: sending notification email of question reset to '. $attributes['uid'][0]);
     }
 
     public function sendMailCode($uid, $email) {
@@ -501,7 +588,7 @@ EOD;
           mail($email, 'Code = '.$code, '');
         }
 
-        SimpleSAML_Logger::debug('auth2factor: sending '.self::FACTOR_MAIL.' code: '. $code);
+        \SimpleSAML\Logger::debug('auth2factor: sending '.self::FACTOR_MAIL.' code: '. $code);
 
     }
 
@@ -532,10 +619,10 @@ EOD;
         $rows = $q->fetchAll();
 
         if (count($rows) == 0) {
-            SimpleSAML_Logger::debug('User '.$uid.' has no challenge');
+            \SimpleSAML\Logger::debug('User '.$uid.' has no challenge');
             return false;
         } else if (count($rows) > 1) {
-            SimpleSAML_Logger::debug('User '.$uid.' has multiple prefs rows');
+            \SimpleSAML\Logger::debug('User '.$uid.' has multiple prefs rows');
         }
 
         $age = date_diff(new DateTime(), date_create($rows[0]['last_code_stamp']));
@@ -545,13 +632,13 @@ EOD;
         $age_s += $age->d * 60 * 60 * 24;
         $age_s += $age->m * 60 * 60 * 24 * 30; // Codes don't live for more than a few minutes, so this is an OK assumption
         $age_s += $age->y * 60 * 60 * 24 * 30 * 12;
-        SimpleSAML_Logger::debug('User code age '. $age_s);
+        \SimpleSAML\Logger::debug('User code age '. $age_s);
 
         if (strlen($rows[0]['last_code']) != $this->singleUseCodeLength) {
-            SimpleSAML_Logger::debug('User '.$uid.' stored code is too short');
+            \SimpleSAML\Logger::debug('User '.$uid.' stored code is too short');
             return false;
         } else if ($age_s > $this->maxCodeAge) {
-            SimpleSAML_Logger::debug('User '.$uid.' stored code has expired');
+            \SimpleSAML\Logger::debug('User '.$uid.' stored code has expired');
             return false;
         } else {
             return true;
@@ -627,7 +714,7 @@ EOD;
                                        ':answer_hash' => $answer_hash,
                                        ':question' => $question,
                                        ':uid' => $uid]);
-                SimpleSAML_Logger::debug('auth2factor: ' . $uid . ' registered his answer: '. $answer . ' for question_id:' . $question);
+                \SimpleSAML\Logger::debug('auth2factor: ' . $uid . ' registered his answer: '. $answer . ' for question_id:' . $question);
                 $result = TRUE;
             } else {
                 $result = FALSE;
@@ -653,7 +740,7 @@ EOD;
       if ($resetAnswers && $resetQuestions) {
         // make sure the preference is still set to questions!
         $this->set2Factor($uid, 'question');
-        SimpleSAML_Logger::debug('auth2factor: ' . $uid . ' has asked to reset their questions (including user defined)');
+        \SimpleSAML\Logger::debug('auth2factor: ' . $uid . ' has asked to reset their questions (including user defined)');
         return true;
       }
 
@@ -697,7 +784,7 @@ EOD;
                                          ':answer_hash' => $answer_hash,
                                          ':user_question_id' => $user_question_id,
                                          ':uid' => $uid]);
-                  SimpleSAML_Logger::debug('auth2factor: ' . $uid . ' registered his answer: '. $answer . ' for custom_question_id:' . $user_question_id);
+                  \SimpleSAML\Logger::debug('auth2factor: ' . $uid . ' registered his answer: '. $answer . ' for custom_question_id:' . $user_question_id);
               } else {
                   $result = FALSE;
               }
@@ -715,7 +802,7 @@ EOD;
                                          ':answer_hash' => $answer_hash,
                                          ':question' => $question,
                                          ':uid' => $uid]);
-                  SimpleSAML_Logger::debug('auth2factor: ' . $uid . ' registered his answer: '. $answer . ' for question_id:' . $question);
+                  \SimpleSAML\Logger::debug('auth2factor: ' . $uid . ' registered his answer: '. $answer . ' for question_id:' . $question);
               } else {
                   $result = FALSE;
               }
@@ -757,16 +844,16 @@ EOD;
             $rows = $q->fetchAll();
 
             if ($rows[0]['last_code'] === trim($answer)) {
-                SimpleSAML_Logger::debug('User '.$uid.' passed good code');
+                \SimpleSAML\Logger::debug('User '.$uid.' passed good code');
                 $q = $this->dbh->prepare("UPDATE ssp_user_2factor SET last_code=NULL,last_code_stamp=NULL WHERE uid=:uid;");
                 $result = $q->execute([':uid' => $uid]);
                 return true;
             } else {
-                SimpleSAML_Logger::debug('User '.$uid.' passed bad code. "'.$rows[0]['last_code'].'" !== "'.$answer.'"');
+                \SimpleSAML\Logger::debug('User '.$uid.' passed bad code. "'.$rows[0]['last_code'].'" !== "'.$answer.'"');
                 return false;
             }
         } else {
-            SimpleSAML_Logger::debug('User '.$uid.' does not have a code');
+            \SimpleSAML\Logger::debug('User '.$uid.' does not have a code');
             return false;
         }
     }
@@ -820,12 +907,12 @@ EOD;
       // write it back to database the new count
       $q = $this->dbh->prepare("UPDATE ssp_user_2factor SET $type = $type + 1 WHERE uid=:uid LIMIT 1;");
       $result = $q->execute([':uid' => $uid]);
-      SimpleSAML_Logger::debug('User '.$uid.' failed login attempt with ' . $type);
+      \SimpleSAML\Logger::debug('User '.$uid.' failed login attempt with ' . $type);
       // lock the account!
       $failedAttempts = $this->getFailedAttempts($uid);
 
       if ($this->maxFailLogin == ((int)$failedAttempts[0]['login_count'] + (int) $failedAttempts[0]['answer_count'])) {
-        SimpleSAML_Logger::debug('User '.$uid.' has exceeded max failed login attempts of ' . $this->maxFailLogin);
+        \SimpleSAML\Logger::debug('User '.$uid.' has exceeded max failed login attempts of ' . $this->maxFailLogin);
         $this->lockAccount($uid);
         $this->emailAdministrators($attributes);
         $this->emailUser($attributes['uid'], $attributes['mail'], $attributes['name']);
@@ -857,7 +944,7 @@ EOD;
     public function resetFailedLoginAttempts($uid, $type = 'login_count') {
       $q = $this->dbh->prepare("UPDATE ssp_user_2factor SET $type = 0 WHERE uid=:uid LIMIT 1;");
       $result = $q->execute([':uid' => $uid]);
-      SimpleSAML_Logger::debug('User '.$uid.' reset login attempts back to zero');
+      \SimpleSAML\Logger::debug('User '.$uid.' reset login attempts back to zero');
     }
 
    /**
@@ -895,7 +982,7 @@ EOD;
       $this->resetFailedLoginAttempts($uid, 'login_count');
       $this->resetFailedLoginAttempts($uid, 'answer_count');
 
-      SimpleSAML_Logger::debug('User '.$uid.' account is now locked');
+      \SimpleSAML\Logger::debug('User '.$uid.' account is now locked');
     }
 
     private function emailAdministrators($attributes) {

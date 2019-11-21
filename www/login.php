@@ -6,26 +6,36 @@
  * @version $Id$
  */
 
-$as = SimpleSAML_Configuration::getConfig('authsources.php')->getValue('auth2factor');
+// Retrieve the authentication state
+if (!array_key_exists('AuthState', $_REQUEST)) {
+    throw new \SimpleSAML\Error\BadRequest('Missing AuthState parameter.');
+}
+
+$as = \SimpleSAML\Configuration::getConfig('authsources.php')->getValue('auth2factor');
 
 // Get session object
-$session = \SimpleSAML_Session::getSessionFromRequest();
+$session = \SimpleSAML\Session::getSessionFromRequest();
 
 // Get the authetication state
 $authStateId = $_REQUEST['AuthState'];
-$state = SimpleSAML_Auth_State::loadState($authStateId,'auth2factor.step');
+
+//$state = SimpleSAML_Auth_State::loadState($authStateId,'auth2factor.step');
+//$state = \SimpleSAML\Auth\State::loadState($authStateId, 'auth2factor.step');
+/** @var array $state */
+$state = \SimpleSAML\Auth\State::loadState($authStateId, \SimpleSAML\Module\auth2factor\Auth\Source\auth2factor::STAGEID);
 
 // Use 2 step authentication class
-$qaLogin = SimpleSAML_Auth_Source::getById('auth2factor');
+$qaLogin = \SimpleSAML\Auth\Source::getById('auth2factor');
 
 // Init template
 $template = 'auth2factor:login.php';
-$globalConfig = SimpleSAML_Configuration::getInstance();
-$t = new SimpleSAML_XHTML_Template($globalConfig, $template);
+$globalConfig = \SimpleSAML\Configuration::getInstance();
+$t = new \SimpleSAML\XHTML\Template($globalConfig, $template);
 
 $errorCode = NULL;
 
 $questions = $qaLogin->getQuestions();
+
 
 if(!$questions){
     $errorCode = 'EMPTYQUESTIONS';
@@ -34,18 +44,36 @@ if(!$questions){
 
 $t->data['questions'] = $questions;
 
+
 //If user doesn't have session, force to use the main authentication method
+// if (!$session->isValid( $as['mainAuthSource'] )) {
+//     SimpleSAML_Auth_Default::initLogin( $as['mainAuthSource'], SimpleSAML_Utilities::selfURL());
+// }
+
 if (!$session->isValid( $as['mainAuthSource'] )) {
-    SimpleSAML_Auth_Default::initLogin( $as['mainAuthSource'], SimpleSAML_Utilities::selfURL());
+//     SimpleSAML_Auth_Default::initLogin( $as['mainAuthSource'], SimpleSAML_Utilities::selfURL());
+    $source = \SimpleSAML\Auth\Source::getById($as['mainAuthSource']);
+    // $source = \SimpleSAML\Auth\Source::getById($state[\SimpleSAML\Module\auth2factor\Auth\Source\auth2factor::AUTHID]);
+    if ($source === null) {
+        throw new \Exception(
+            'Could not find authentication source with id ' . $as['mainAuthSource']
+        );
+    }
+    //'\SimpleSAML\Auth\DefaultAuth.id'
+
+    $source->initLogin(\SimpleSAML\Utils\HTTP::getSelfURL());
 }
 
+
+
+// $attributes = $session->getAuthData($as['mainAuthSource'], 'Attributes');
 $attributes = $session->getAuthData($as['mainAuthSource'], 'Attributes');
 $state['Attributes'] = $attributes;
 
 
-$uid = $attributes[ $as['uidField'] ][0];
-$email = $attributes[ $as['emailField'] ][0]; // TODO fall back on uid if not set
-$givenName = $attributes['givenName'][0]; // TODO this may or may not be there
+$uid = $attributes[ $as['uidField'] ][0]; // TODO check to see if this is set.
+$email = isset( $attributes[ $as['emailField'] ][0] ) ? $attributes[ $as['emailField'] ][0] : $uid; 
+$givenName = isset( $attributes['givenName'][0] ) ? $attributes['givenName'][0] : ""; 
 
 $state['UserID'] = $uid;
 $isRegistered = $qaLogin->isRegistered($uid);
@@ -75,7 +103,7 @@ if($accountLocked) {
 // if we are using SSL ceritificate to verify then we do not need 2-factor
 if ($isSSLVerified && !$accountLocked) {
     $state['saml:AuthnContextClassRef'] = $qaLogin->tfa_authencontextclassref;
-    SimpleSAML_Auth_Source::completeAuth($state);
+    \SimpleSAML\Auth\Source::completeAuth($state);
 } else {
     // if SSL verification has failed make sure we fall back on question
     if (!$qaLogin->hasMailCode($uid)) {
@@ -103,7 +131,8 @@ if (!$isRegistered && !$isSSLVerified) {
         }
 
         // verify answers are not duplicates
-        if( (sizeof(array_unique($answers)) != sizeof($answers)) || (sizeof(array_unique($questions)) != sizeof($questions)) ){
+        if( (sizeof(array_unique($answers)) != sizeof($answers)) || (sizeof(array_unique($questions)) != sizeof($questions)) )
+        {
             $errorCode = 'INVALIDQUESTIONANSWERS';
             $t->data['todo'] = 'selectanswers';
         } elseif (count($questions) < 3 || sizeof($answers) < 3) {
@@ -125,9 +154,9 @@ if (!$isRegistered && !$isSSLVerified) {
                 $t->data['todo'] = 'selectanswers';
             } else {
                 // redirect user back to be quized
-                SimpleSAML_Utilities::redirect(SimpleSAML_Utilities::selfURL(), array('AuthState' => $authStateId,
-                                                                                      'Quesetions' => $_POST['questions'],
-                                                                                      'Answers' => $_POST['answers']));
+                \SimpleSAML\Utilities::redirect(\SimpleSAML\Utilities::selfURL(), [ 'AuthState' => $authStateId,
+                                                                                    'Quesetions' => $_POST['questions'],
+                                                                                    'Answers' => $_POST['answers']]);
             }
         }
 
@@ -197,7 +226,7 @@ if ($isRegistered && !$isSSLVerified && !$accountLocked) {
                         if ($loggedIn){
                             $state['saml:AuthnContextClassRef'] = $qaLogin->tfa_authencontextclassref;
                             $qaLogin->resetFailedLoginAttempts($uid, 'answer_count');
-                            SimpleSAML_Auth_Source::completeAuth($state);
+                            \SimpleSAML\Auth\Source::completeAuth($state);
                         } else {
                             $errorCode = 'WRONGANSWER';
                             // only increment if the account is not already locked
@@ -230,7 +259,7 @@ if ($isRegistered && !$isSSLVerified && !$accountLocked) {
                         if ($loggedIn){
                           $state['saml:AuthnContextClassRef'] = $qaLogin->tfa_authencontextclassref;
                           $qaLogin->resetFailedLoginAttempts($uid, 'answer_count');
-                          SimpleSAML_Auth_Source::completeAuth($state);
+                          \SimpleSAML\Auth\Source::completeAuth($state);
                         } else {
                           $errorCode = 'CODEXPIRED';
                           if (!$qaLogin->isLocked($uid)) {

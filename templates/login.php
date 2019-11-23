@@ -16,7 +16,7 @@ $this->data['header'] = $this->t('{auth2factor:login:authentication}');
     $("input[type='text']").keyboard({
         autoAccept: true,
         layout: 'custom',
-        lockInput: true,
+        lockInput: false,
         customLayout: {
         'default': ['0 1 2 3 4 5 6 7 8 9', 'a b c d e f g h i j k l m', 'n o p q r s t u v w x y z','{accept} {space} {cancel}']
         }
@@ -83,7 +83,7 @@ $this->data['header'] = $this->t('{auth2factor:login:authentication}');
                     echo '<option class="custom" value="question_'.$i.'">Write your own question ...</option>';
                     echo '</select>';
 
-                    echo '<input style="display: none;" autocomplete="off" autocorrect="off" autocapitalize="off" class="form-control small question_'.$i.'" placeholder="Question" name="questions[]" value="'.$question_value. '" type="text" pattern=".{'.$this->data['minQuestionLength'].',}"';
+                    echo '<input style="display: none;" autocomplete="off" autocorrect="off" autocapitalize="off" class="form-control small question_'.$i.'" placeholder="Question" name="custom_questions[]" value="'.$question_value. '" type="text" pattern=".{'.$this->data['minQuestionLength'].',}"';
                     echo ' title="Question must be at least '.$this->data['minQuestionLength'].' characters long" required="requred">';
 
                     echo 'Answer: <input name="answers[]" value="" type="text" pattern=".{'.$this->data['minAnswerLength'].',}"';

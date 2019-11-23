@@ -322,12 +322,15 @@ class auth2factor extends \SimpleSAML\Auth\Source {
 
   public function logout(&$state) {
         assert('is_array($state)');
+
         $state[self::AUTHID] = $this->authId;
 
         $id = \SimpleSAML\Auth\State::saveState($state, self::STEPID);
 
         $url = \SimpleSAML\Module::getModuleURL('auth2factor/logout.php');
-        \SimpleSAML\Utilities::redirect($url, ['AuthState' => $id]);
+
+        //TODO Only redirec to trusted URL
+        \SimpleSAML\Utilities::redirect($this->logoutURL, ['AuthState' => $id]);
   }
 
   //Generate a random string of a given length. Used to produce the per-question salt
@@ -531,7 +534,7 @@ EOD;
                       "Subject" => $this->mail["subject"]  . $subject,
                     ];
 
-          $mail = new Mail();
+          $mail = new \Mail();
 
           $mail_factory = $mail->factory('smtp', $params); // Print the parameters you are using to the page
           $mail_factory->send($email, $headers, $body);
@@ -577,7 +580,7 @@ EOD;
                         "Subject" => $this->mail["subject"] . " Code = " . $code,
                     ];
 
-          $mail = new Mail();
+          $mail = new \Mail();
 
           $mail_factory = $mail->factory('smtp', $params); // Print the parameters you are using to the page
           $mail_factory->send($email, $headers, $this->mail["body"]);
@@ -625,7 +628,7 @@ EOD;
             \SimpleSAML\Logger::debug('User '.$uid.' has multiple prefs rows');
         }
 
-        $age = date_diff(new DateTime(), date_create($rows[0]['last_code_stamp']));
+        $age = date_diff(new \DateTime(), date_create($rows[0]['last_code_stamp']));
         $age_s = $age->s;
         $age_s += $age->i * 60;
         $age_s += $age->h * 60 * 60;
@@ -698,6 +701,8 @@ EOD;
      * @return bool
      */
     public function registerAnswers($uid,$answers, $questions) {
+
+        var_dump((empty($answers) || empty($questions) || empty($uid))); die();
 
         // This check is probably not needed
         if (empty($answers) || empty($questions) || empty($uid)) return FALSE;
@@ -777,31 +782,39 @@ EOD;
 
                   $answer_salt = $this->generateRandomString();
                   $answer_hash = $this->calculateAnswerHash($answer, $this->site_salt, $answer_salt);
-                  $q = $this->dbh->prepare("INSERT INTO ssp_answers (answer_salt, answer_hash, user_question_id, uid) VALUES (:answer_salt, :answer_hash, :user_question_id, :uid)");
+
+                  $q = $this->dbh->prepare("INSERT INTO ssp_answers (answer_salt, answer_hash, user_question_id, uid, question_id) VALUES (:answer_salt, :answer_hash, :user_question_id, :uid, :question_id)");
 
 
                   $result = $q->execute([':answer_salt' => $answer_salt,
                                          ':answer_hash' => $answer_hash,
                                          ':user_question_id' => $user_question_id,
-                                         ':uid' => $uid]);
+                                         ':uid' => $uid,
+                                         ':question_id' => 0]
+                  );
+
                   \SimpleSAML\Logger::debug('auth2factor: ' . $uid . ' registered his answer: '. $answer . ' for custom_question_id:' . $user_question_id);
               } else {
                   $result = FALSE;
               }
 
 
-            } else { // dealing with pre-defined questions below
+            } else { 
+
+              // dealing with pre-defined questions below
               // Check that the answer meets the length requirements
               if ((strlen($answer) >= $this->minAnswerLength) && (int) $question > 0) {
                   $answer_salt = $this->generateRandomString();
                   $answer_hash = $this->calculateAnswerHash($answer, $this->site_salt, $answer_salt);
-                  $q = $this->dbh->prepare("INSERT INTO ssp_answers (answer_salt, answer_hash, question_id, uid) VALUES (:answer_salt, :answer_hash, :question, :uid)");
+                  $q = $this->dbh->prepare("INSERT INTO ssp_answers (answer_salt, answer_hash, question_id, uid, user_question_id) VALUES (:answer_salt, :answer_hash, :question_id, :uid, :user_question_id)");
 
 
                   $result = $q->execute([':answer_salt' => $answer_salt,
                                          ':answer_hash' => $answer_hash,
-                                         ':question' => $question,
-                                         ':uid' => $uid]);
+                                         ':question_id' => $question,
+                                         ':uid' => $uid,
+                                         ':user_question_id' => 0]);
+
                   \SimpleSAML\Logger::debug('auth2factor: ' . $uid . ' registered his answer: '. $answer . ' for question_id:' . $question);
               } else {
                   $result = FALSE;

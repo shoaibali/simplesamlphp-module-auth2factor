@@ -48,6 +48,6 @@
 		"en": "Complete login with answer to secret question."
 	},
     "resend": {
-	"en": "Resend code"
+		"en": "Resend code"
     }
 }

@@ -124,13 +124,18 @@ if (!$isRegistered && !$isSSLVerified) {
         $questions = (isset($_POST["questions"]))? $_POST["questions"] : [];
         $custom_questions = (isset($_POST["custom_questions"]))?  $_POST["custom_questions"] : [];
 
-        foreach($custom_questions as $ck => $cv) {
-            if (!empty($cv)) {
-                $questions[$ck] = $cv;
+        if (!empty($custom_questions)) {
+            foreach($custom_questions as $ck => $cv) {
+                if (!empty($cv)) {
+                    $questions[$ck] = $cv;
+                }
             }
         }
 
         // verify answers are not duplicates
+        // var_dump($answers); 
+        // var_dump((sizeof(array_unique($questions)) != sizeof($questions)));
+        //die();
         if( (sizeof(array_unique($answers)) != sizeof($answers)) || (sizeof(array_unique($questions)) != sizeof($questions)) )
         {
             $errorCode = 'INVALIDQUESTIONANSWERS';
